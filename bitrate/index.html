@@ -124,16 +124,30 @@
   <div id="main">
     <div id="left">
       <div class="panel">
+        <div class="ptitle">配信先</div>
+        <div class="chips" id="pfChips"></div>
+        <div id="pfNote" class="note sub"></div>
+      </div>
+
+      <div class="panel">
         <div class="ptitle">解像度</div>
         <div class="chips" id="resChips"></div>
-        <div class="ptitle sub">フレームレート</div>
-        <div class="chips" id="fpsChips"></div>
-        <div class="ptitle sub">コーデック</div>
-        <div class="chips" id="codecChips"></div>
-        <div class="ptitle sub">映像の動き</div>
-        <div class="chips" id="motionChips"></div>
-        <div class="ptitle sub">音声ビットレート</div>
-        <div class="chips" id="audioChips"></div>
+        <div id="cfgFps">
+          <div class="ptitle sub">フレームレート</div>
+          <div class="chips" id="fpsChips"></div>
+        </div>
+        <div id="cfgCodec">
+          <div class="ptitle sub">コーデック</div>
+          <div class="chips" id="codecChips"></div>
+        </div>
+        <div id="cfgMotion">
+          <div class="ptitle sub">映像の動き</div>
+          <div class="chips" id="motionChips"></div>
+        </div>
+        <div id="cfgAudio">
+          <div class="ptitle sub">音声ビットレート</div>
+          <div class="chips" id="audioChips"></div>
+        </div>
         <div class="ptitle sub">回線余裕(ヘッドルーム)</div>
         <div class="chips" id="headChips"></div>
       </div>
@@ -207,20 +221,45 @@ const HEADROOM = [
   { n: "×2.5(標準)", f: 2.5 },
   { n: "×3(モバイル回線)", f: 3 },
 ];
+const PLATFORMS = [
+  { n: "YouTube Live", maxRes: "2160p", cap: Infinity,
+    note: "4K・60fpsまで対応。推奨値はYouTube公式の推奨ビットレートに基づきます。" },
+  { n: "Twitch", maxRes: "1080p", cap: 6, audioMax: 160,
+    note: "映像は上限6Mbps・1080p60まで。音声は160kbps以下推奨。上限でクランプして計算します。" },
+  { n: "Vimeo", maxRes: "1080p", cap: 10,
+    note: "ライブ配信は1080pまで(1080pの推奨は4〜8Mbps)。" },
+  { n: "Zoom", zoom: true,
+    note: "Zoomは回線に応じて画質を自動調整するため、ビットレートは指定できません。送信に必要な上り回線の目安(公式推奨帯域)を表示します。ウェビナー/ミーティング共通の目安です。" },
+  { n: "汎用RTMP", maxRes: "2160p", cap: Infinity,
+    note: "配信先が未定・その他の場合の汎用目安(YouTube推奨値ベース)。配信先の上限仕様は別途確認してください。" },
+];
+const ZOOM_UP = { "1080p": 3.8, "720p": 2.6, "480p": 1.0 }; // 送信の必要帯域目安(Mbps)
+const ZOOM_LABEL = { "1080p": "1080p(フルHD)", "720p": "720p(HD)", "480p": "標準画質" };
 
-let state = { res: "1080p", fps: 30, codec: "H.264", motion: "標準", audio: 192, head: 2.5, upload: null };
+let state = { platform: "YouTube Live", res: "1080p", fps: 30, codec: "H.264", motion: "標準", audio: 192, head: 2.5, upload: null };
 try { Object.assign(state, JSON.parse(localStorage.getItem(LS_KEY) || "{}")); } catch (e) {}
 function save() { try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {} }
 
 function fpsClass(fps) { return fps >= 50 ? 60 : 30; }
 function codecF() { return CODECS.find(c => c.n === state.codec).f; }
 function motionF() { return MOTIONS.find(m => m.n === state.motion).f; }
+function platform() { return PLATFORMS.find(p => p.n === state.platform) || PLATFORMS[0]; }
+function allowedRes() {
+  const p = platform();
+  if (p.zoom) return ["1080p", "720p", "480p"];
+  return RES.slice(RES.indexOf(p.maxRes));
+}
+function effAudio() {
+  const m = platform().audioMax;
+  return m ? Math.min(state.audio, m) : state.audio;
+}
 
 function videoMbps(res, fps) {
   const [lo, mid, hi] = TABLE[res][fpsClass(fps)];
   const f = codecF() * motionF();
-  const clamp = (v) => Math.max(0.2, v * f);
-  return { lo: clamp(lo), mid: clamp(mid), hi: clamp(hi) };
+  const cap = platform().cap ?? Infinity;
+  const c = (v) => Math.min(cap, Math.max(0.2, v * f));
+  return { lo: c(lo), mid: c(mid), hi: c(hi), capped: mid * f > cap };
 }
 
 function fmt(v, d) { return v.toFixed(v < 10 ? (d ?? 1) : 0); }
@@ -238,33 +277,33 @@ function chips(elId, items, getSel, onPick, label) {
 }
 
 function render() {
+  if (!allowedRes().includes(state.res)) state.res = allowedRes()[0];
   save();
-  chips("resChips", RES, r => r === state.res, r => { state.res = r; }, r => RES_LABEL[r]);
+  chips("pfChips", PLATFORMS, p => p.n === state.platform, p => { state.platform = p.n; }, p => p.n);
+  $("pfNote").textContent = platform().note;
+  chips("resChips", allowedRes(), r => r === state.res, r => { state.res = r; },
+    r => platform().zoom ? ZOOM_LABEL[r] : RES_LABEL[r]);
   chips("fpsChips", FPS, f => f === state.fps, f => { state.fps = f; }, f => f + "fps");
   chips("codecChips", CODECS, c => c.n === state.codec, c => { state.codec = c.n; }, c => c.n);
   chips("motionChips", MOTIONS, m => m.n === state.motion, m => { state.motion = m.n; }, m => m.n);
   chips("audioChips", AUDIO, a => a === state.audio, a => { state.audio = a; }, a => a + "kbps");
   chips("headChips", HEADROOM, h => h.f === state.head, h => { state.head = h.f; }, h => h.n);
 
-  const v = videoMbps(state.res, state.fps);
-  const audio = state.audio / 1000;
-  const total = v.mid + audio;
-  const needUp = total * state.head;
-  const gbPerH = total * 3600 / 8 / 1000;
+  const zoom = !!platform().zoom;
+  for (const id of ["cfgFps", "cfgCodec", "cfgMotion", "cfgAudio"]) {
+    $(id).style.display = zoom ? "none" : "";
+  }
+  renderResults();
+  $("upload").value = state.upload ?? "";
+}
 
-  $("bigLbl").textContent = RES_LABEL[state.res] + " / " + state.fps + "fps / " + state.codec + " の推奨ビットレート(映像)";
-  $("bigVal").textContent = fmt(v.mid) + " Mbps";
-  $("bigRng").textContent = "許容範囲: " + fmt(v.lo) + " 〜 " + fmt(v.hi) + " Mbps";
+// everything that depends on the upload value but must not touch the input itself
+function renderResults() {
+  if (platform().zoom) renderZoom(); else renderStandard();
+}
 
-  const rows = [
-    ["映像ビットレート(推奨)", fmt(v.mid) + " Mbps"],
-    ["音声ビットレート", state.audio + " kbps"],
-    ["総ビットレート", fmt(total) + " Mbps"],
-    ["必要な上り回線速度(×" + state.head + ")", fmt(needUp) + " Mbps 以上"],
-    ["録画・アーカイブ容量", gbPerH.toFixed(2) + " GB/時間"],
-    ["2時間配信の容量目安", (gbPerH * 2).toFixed(1) + " GB"],
-  ];
-  const tbl = $("out");
+function fillTable(elId, rows) {
+  const tbl = $(elId);
   tbl.textContent = "";
   for (const [k, val] of rows) {
     const tr = document.createElement("tr");
@@ -273,29 +312,55 @@ function render() {
     tr.append(td1, td2);
     tbl.appendChild(tr);
   }
-
-  $("upload").value = state.upload ?? "";
-  renderVerdict(total, needUp);
-  renderMatrix();
 }
 
-function renderVerdict(total, needUp) {
+function verdictBox(total, needUp) {
   const box = $("verdict");
   if (!Number.isFinite(state.upload) || state.upload == null) { box.style.display = "none"; return; }
   box.style.display = "block";
   const up = state.upload;
-  const safe = up / state.head;          // total bitrate we can afford
+  const safe = up / state.head; // total bitrate we can afford
   box.classList.remove("ok", "warn", "ng");
   if (up >= needUp) {
     box.classList.add("ok");
     box.textContent = "✓ この設定でいけます(必要 " + fmt(needUp) + " Mbps ≦ 実測 " + fmt(up) + " Mbps)";
   } else if (up >= total * 1.5) {
     box.classList.add("warn");
-    box.textContent = "△ ギリギリです。ビットレートを " + fmt(safe) + " Mbps 以下に下げるか、設定を落とすのが安全(推奨ヘッドルーム未満)";
+    box.textContent = platform().zoom
+      ? "△ ギリギリです。Zoom側で画質が自動的に落ちる可能性があります"
+      : "△ ギリギリです。ビットレートを " + fmt(safe) + " Mbps 以下に下げるか、設定を落とすのが安全(推奨ヘッドルーム未満)";
   } else {
     box.classList.add("ng");
-    box.textContent = "✕ この回線では不足です。総ビットレートを " + fmt(safe) + " Mbps 以下に。下の表で安全な設定を確認してください";
+    box.textContent = platform().zoom
+      ? "✕ この回線では不足です。下の表で安全な画質を確認してください"
+      : "✕ この回線では不足です。総ビットレートを " + fmt(safe) + " Mbps 以下に。下の表で安全な設定を確認してください";
   }
+}
+
+/* ---------- standard (RTMP platforms) ---------- */
+function renderStandard() {
+  const v = videoMbps(state.res, state.fps);
+  const audio = effAudio() / 1000;
+  const total = v.mid + audio;
+  const needUp = total * state.head;
+  const gbPerH = total * 3600 / 8 / 1000;
+
+  $("bigLbl").textContent = state.platform + " / " + RES_LABEL[state.res] + " / " + state.fps + "fps / " + state.codec + " の推奨ビットレート(映像)";
+  $("bigVal").textContent = fmt(v.mid) + " Mbps";
+  $("bigRng").textContent = "許容範囲: " + fmt(v.lo) + " 〜 " + fmt(v.hi) + " Mbps" +
+    (v.capped ? "(" + state.platform + "の上限でクランプ)" : "");
+
+  const audioNote = effAudio() !== state.audio ? "(" + state.platform + "上限 " + effAudio() + "kbps で計算)" : "";
+  fillTable("out", [
+    ["映像ビットレート(推奨)", fmt(v.mid) + " Mbps"],
+    ["音声ビットレート" + audioNote, effAudio() + " kbps"],
+    ["総ビットレート", fmt(total) + " Mbps"],
+    ["必要な上り回線速度(×" + state.head + ")", fmt(needUp) + " Mbps 以上"],
+    ["録画・アーカイブ容量", gbPerH.toFixed(2) + " GB/時間"],
+    ["2時間配信の容量目安", (gbPerH * 2).toFixed(1) + " GB"],
+  ]);
+  verdictBox(total, needUp);
+  renderMatrix();
 }
 
 function renderMatrix() {
@@ -303,8 +368,8 @@ function renderMatrix() {
   tbl.textContent = "";
   const up = state.upload;
   $("mxTitle").textContent = Number.isFinite(up)
-    ? "上り " + up + " Mbps でいける設定(" + state.codec + "・×" + state.head + "判定)"
-    : "解像度×fpsの推奨ビットレート一覧(" + state.codec + ")— 上り速度を入力すると判定が出ます";
+    ? "上り " + up + " Mbps でいける設定(" + state.platform + "・" + state.codec + "・×" + state.head + "判定)"
+    : "解像度×fpsの総ビットレート一覧(" + state.platform + "・" + state.codec + ")— 上り速度を入力すると判定が出ます";
 
   const head = document.createElement("tr");
   head.appendChild(document.createElement("th"));
@@ -315,7 +380,7 @@ function renderMatrix() {
   }
   tbl.appendChild(head);
 
-  for (const r of RES) {
+  for (const r of allowedRes()) {
     const tr = document.createElement("tr");
     const td0 = document.createElement("td");
     td0.textContent = RES_LABEL[r];
@@ -323,7 +388,7 @@ function renderMatrix() {
     for (const f of [30, 60]) {
       const td = document.createElement("td");
       const v = videoMbps(r, f);
-      const total = v.mid + state.audio / 1000;
+      const total = v.mid + effAudio() / 1000;
       if (Number.isFinite(up)) {
         const need = total * state.head;
         if (up >= need) { td.textContent = "◯ " + fmt(total); td.className = "OK"; }
@@ -339,14 +404,60 @@ function renderMatrix() {
   }
 }
 
+/* ---------- Zoom (auto-managed bitrate) ---------- */
+function renderZoom() {
+  const send = ZOOM_UP[state.res];
+  const needUp = send * state.head;
+
+  $("bigLbl").textContent = "Zoom " + ZOOM_LABEL[state.res] + " の送信に必要な上り回線(目安)";
+  $("bigVal").textContent = fmt(needUp) + " Mbps";
+  $("bigRng").textContent = "送信帯域の目安 " + fmt(send) + " Mbps × 余裕" + state.head + "倍";
+
+  fillTable("out", [
+    ["映像送信の必要帯域(目安)", fmt(send) + " Mbps"],
+    ["必要な上り回線速度(×" + state.head + ")", fmt(needUp) + " Mbps 以上"],
+    ["受信側(視聴・参加者)の目安", fmt(send) + " Mbps 程度(下り)"],
+    ["画面共有を併用する場合", "+0.5〜1 Mbps 程度を見込む"],
+    ["録画", "クラウド記録はZoom側で行われ回線負荷なし"],
+  ]);
+  verdictBox(send, needUp);
+
+  // simple per-quality table
+  const tbl = $("matrix");
+  tbl.textContent = "";
+  const up = state.upload;
+  $("mxTitle").textContent = Number.isFinite(up)
+    ? "上り " + up + " Mbps でいけるZoom画質(×" + state.head + "判定)"
+    : "Zoom画質ごとの必要上り回線 — 上り速度を入力すると判定が出ます";
+  const head = document.createElement("tr");
+  head.appendChild(document.createElement("th"));
+  const th1 = document.createElement("th"); th1.textContent = "必要上り(×" + state.head + ")";
+  head.appendChild(th1);
+  tbl.appendChild(head);
+  for (const r of ["1080p", "720p", "480p"]) {
+    const tr = document.createElement("tr");
+    const td0 = document.createElement("td");
+    td0.textContent = ZOOM_LABEL[r];
+    tr.appendChild(td0);
+    const td = document.createElement("td");
+    const need = ZOOM_UP[r] * state.head;
+    if (Number.isFinite(up)) {
+      if (up >= need) { td.textContent = "◯ " + fmt(need); td.className = "OK"; }
+      else if (up >= ZOOM_UP[r] * 1.5) { td.textContent = "△ " + fmt(need); td.className = "GIRI"; }
+      else { td.textContent = "✕ " + fmt(need); td.className = "MURI"; }
+    } else {
+      td.textContent = fmt(need) + " Mbps";
+    }
+    tr.appendChild(td);
+    tbl.appendChild(tr);
+  }
+}
+
 $("upload").addEventListener("input", () => {
   const v = parseFloat($("upload").value);
   state.upload = Number.isFinite(v) && v > 0 ? v : null;
   save();
-  const vv = videoMbps(state.res, state.fps);
-  const total = vv.mid + state.audio / 1000;
-  renderVerdict(total, total * state.head);
-  renderMatrix();
+  renderResults();
 });
 
 if ("serviceWorker" in navigator && location.protocol === "https:") {
