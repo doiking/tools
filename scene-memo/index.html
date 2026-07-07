@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#141418">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<title>シーンメモ — カチンコ</title>
+<style>
+  :root {
+    --bg: #0e0e11;
+    --board: #1c1c22;
+    --panel: #16161b;
+    --line: #33333c;
+    --chalk: #f2f2ee;
+    --dim: #9a9aa4;
+    --accent: #ffd54a;
+    --ok: #3ecf6e;
+    --keep: #4aa3ff;
+    --ng: #ff5a5a;
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--chalk);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+    overscroll-behavior: none;
+  }
+  input, textarea { -webkit-user-select: text; user-select: text; }
+
+  #app {
+    display: flex;
+    height: 100dvh;
+    padding: calc(8px + var(--sat)) calc(10px + var(--sar)) calc(8px + var(--sab)) calc(10px + var(--sal));
+    gap: 12px;
+  }
+
+  /* ---------- clapperboard (left) ---------- */
+  #board {
+    flex: 1.5;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--board);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    overflow: hidden;
+  }
+  #sticks {
+    height: 56px;
+    flex: none;
+    background: repeating-linear-gradient(-45deg, #f2f2ee 0 34px, #131316 34px 68px);
+    border-bottom: 3px solid #000;
+    cursor: pointer;
+    transform-origin: left bottom;
+  }
+  #sticks.clap { animation: clapstick .28s ease-out; }
+  @keyframes clapstick {
+    0% { transform: rotate(-7deg); }
+    55% { transform: rotate(.8deg); }
+    100% { transform: rotate(0); }
+  }
+
+  #boardBody {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 14px 18px 16px;
+    gap: 10px;
+    min-height: 0;
+  }
+
+  .fieldRow { display: flex; gap: 10px; }
+  .field { flex: 1; min-width: 0; }
+  .field label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: .14em;
+    color: var(--dim);
+    margin: 0 0 2px 2px;
+  }
+  .field input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1.5px solid var(--line);
+    color: var(--chalk);
+    font-size: 20px;
+    padding: 2px 2px 6px;
+    border-radius: 0;
+  }
+  .field input:focus { outline: none; border-bottom-color: var(--accent); }
+  #production { font-size: 26px; font-weight: 700; }
+
+  #clock {
+    font-variant-numeric: tabular-nums;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 20px;
+    color: var(--dim);
+    padding-top: 16px;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  /* counters */
+  #counters { display: flex; gap: 10px; flex: 1; min-height: 0; }
+  .counter {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 8px 4px;
+    gap: 2px;
+    min-height: 0;
+  }
+  .counter .clabel { font-size: 13px; letter-spacing: .22em; color: var(--dim); }
+  .counter .cvalue {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-weight: 700;
+    font-size: clamp(44px, 9.5vw, 110px);
+    line-height: 1.05;
+    text-align: center;
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--chalk);
+  }
+  .counter .cvalue:focus { outline: none; color: var(--accent); }
+  .stepper { display: flex; gap: 8px; }
+  .stepper button {
+    width: 62px; height: 46px;
+    font-size: 26px;
+    background: #24242c;
+    color: var(--chalk);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  .stepper button:active { background: #33333e; }
+
+  #boardActions { display: flex; gap: 10px; flex: none; }
+  #boardActions .adv {
+    flex: 1;
+    height: 54px;
+    font-size: 17px;
+    font-weight: 600;
+    background: #24242c;
+    color: var(--chalk);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+  #boardActions .adv:active { background: #33333e; }
+  #clapBtn {
+    flex: 2.2;
+    height: 54px;
+    font-size: 21px;
+    font-weight: 800;
+    letter-spacing: .06em;
+    background: var(--accent);
+    color: #17130a;
+    border: none;
+    border-radius: 12px;
+  }
+  #clapBtn:active { filter: brightness(.88); }
+
+  /* ---------- right pane ---------- */
+  #side {
+    flex: 1;
+    min-width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+  }
+
+  #lastTake {
+    background: var(--board);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 12px 14px;
+    flex: none;
+  }
+  #lastTake .title { font-size: 12px; letter-spacing: .12em; color: var(--dim); margin-bottom: 6px; }
+  #lastLabel { font-size: 19px; font-weight: 700; margin-bottom: 10px; font-variant-numeric: tabular-nums; }
+  .judgeRow { display: flex; gap: 8px; }
+  .judgeRow button {
+    flex: 1; height: 48px;
+    font-size: 18px; font-weight: 800;
+    border-radius: 10px;
+    border: 1.5px solid var(--line);
+    background: #202028;
+    color: var(--dim);
+  }
+  .judgeRow button.ok.on   { background: var(--ok);   border-color: var(--ok);   color: #06220f; }
+  .judgeRow button.keep.on { background: var(--keep); border-color: var(--keep); color: #06192e; }
+  .judgeRow button.ng.on   { background: var(--ng);   border-color: var(--ng);   color: #2c0707; }
+  #lastMemo {
+    width: 100%;
+    margin-top: 10px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    color: var(--chalk);
+    font-size: 17px;
+    padding: 10px 12px;
+  }
+  #lastMemo:focus { outline: none; border-color: var(--accent); }
+
+  #history {
+    flex: 1;
+    background: var(--board);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  #history header {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  #history header .title { font-size: 12px; letter-spacing: .12em; color: var(--dim); }
+  #histCount { font-size: 12px; color: var(--dim); }
+  #histList { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .hrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #232329;
+    font-size: 15px;
+  }
+  .hrow .sct { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; min-width: 88px; }
+  .hrow .time { color: var(--dim); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .hrow .badge {
+    min-width: 44px; text-align: center;
+    font-size: 12px; font-weight: 800;
+    border-radius: 7px; padding: 4px 0;
+    background: #24242c; color: var(--dim);
+    border: none;
+  }
+  .hrow .badge.OK   { background: var(--ok);   color: #06220f; }
+  .hrow .badge.KEEP { background: var(--keep); color: #06192e; }
+  .hrow .badge.NG   { background: var(--ng);   color: #2c0707; }
+  .hrow .hmemo {
+    flex: 1; min-width: 0;
+    background: transparent;
+    border: none;
+    border-bottom: 1px dashed #2c2c34;
+    color: var(--chalk);
+    font-size: 14px;
+    padding: 3px 2px;
+  }
+  .hrow .hmemo:focus { outline: none; border-bottom-color: var(--accent); }
+  .hrow .del {
+    background: transparent; border: none;
+    color: #6c6c76; font-size: 17px;
+    padding: 4px 6px;
+  }
+  #histEmpty { padding: 24px 14px; color: var(--dim); font-size: 14px; text-align: center; }
+
+  #toolbar { flex: none; display: flex; gap: 8px; }
+  #toolbar button {
+    flex: 1; height: 46px;
+    font-size: 15px; font-weight: 600;
+    background: #1e1e25;
+    color: var(--chalk);
+    border: 1px solid var(--line);
+    border-radius: 11px;
+  }
+  #toolbar button:active { background: #2b2b34; }
+  #toolbar #clearBtn { color: #ff8484; flex: .7; }
+  #toolbar #soundBtn { flex: .45; font-size: 19px; }
+
+  /* clap flash overlay */
+  #flash {
+    position: fixed; inset: 0;
+    background: #fff;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    z-index: 50;
+    color: #111;
+  }
+  #flash.show { display: flex; animation: flashout .55s ease-out forwards; }
+  @keyframes flashout {
+    0% { opacity: 1; }
+    70% { opacity: 1; }
+    100% { opacity: 0; visibility: hidden; }
+  }
+  #flashSct {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: clamp(60px, 14vw, 160px);
+    font-weight: 800;
+  }
+  #flashTime { font-size: 24px; font-variant-numeric: tabular-nums; }
+
+  /* portrait: stack */
+  @media (orientation: portrait), (max-width: 760px) {
+    #app { flex-direction: column; }
+    #board { flex: none; }
+    #counters { min-height: 150px; }
+    #side { min-width: 0; flex: 1; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <section id="board">
+    <div id="sticks" title="タップでカチン"></div>
+    <div id="boardBody">
+      <div class="fieldRow">
+        <div class="field" style="flex:2">
+          <label>PRODUCTION / 作品名</label>
+          <input id="production" placeholder="作品名" autocomplete="off">
+        </div>
+        <div id="clock">--:--:--</div>
+      </div>
+      <div id="counters">
+        <div class="counter">
+          <span class="clabel">SCENE</span>
+          <input class="cvalue" id="scene" inputmode="text" autocomplete="off">
+          <div class="stepper">
+            <button data-t="scene" data-d="-1">−</button>
+            <button data-t="scene" data-d="1">＋</button>
+          </div>
+        </div>
+        <div class="counter">
+          <span class="clabel">CUT</span>
+          <input class="cvalue" id="cut" inputmode="numeric" autocomplete="off">
+          <div class="stepper">
+            <button data-t="cut" data-d="-1">−</button>
+            <button data-t="cut" data-d="1">＋</button>
+          </div>
+        </div>
+        <div class="counter">
+          <span class="clabel">TAKE</span>
+          <input class="cvalue" id="take" inputmode="numeric" autocomplete="off">
+          <div class="stepper">
+            <button data-t="take" data-d="-1">−</button>
+            <button data-t="take" data-d="1">＋</button>
+          </div>
+        </div>
+      </div>
+      <div class="fieldRow">
+        <div class="field">
+          <label>DIRECTOR / 監督</label>
+          <input id="director" placeholder="監督" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>CAMERA / 撮影</label>
+          <input id="camera" placeholder="撮影" autocomplete="off">
+        </div>
+        <div class="field" style="flex:.7">
+          <label>DATE</label>
+          <input id="date" readonly tabindex="-1">
+        </div>
+      </div>
+      <div id="boardActions">
+        <button class="adv" id="nextCut">次のカット</button>
+        <button class="adv" id="nextScene">次のシーン</button>
+        <button id="clapBtn">🎬 カチン！</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="side">
+    <div id="lastTake">
+      <div class="title">直前のテイク判定</div>
+      <div id="lastLabel">まだ記録がありません</div>
+      <div class="judgeRow">
+        <button class="ok"   data-j="OK">OK</button>
+        <button class="keep" data-j="KEEP">KEEP</button>
+        <button class="ng"   data-j="NG">NG</button>
+      </div>
+      <input id="lastMemo" placeholder="メモ(音NG、目線、タイミング など)" autocomplete="off">
+    </div>
+
+    <div id="history">
+      <header>
+        <span class="title">テイク履歴</span>
+        <span id="histCount"></span>
+      </header>
+      <div id="histList"></div>
+    </div>
+
+    <div id="toolbar">
+      <button id="exportBtn">CSV書き出し</button>
+      <button id="shareBtn">共有</button>
+      <button id="soundBtn" title="クラップ音">🔊</button>
+      <button id="clearBtn">全消去</button>
+    </div>
+  </section>
+</div>
+
+<div id="flash">
+  <div id="flashSct"></div>
+  <div id="flashTime"></div>
+</div>
+
+<script>
+"use strict";
+const LS_KEY = "sceneMemo.v1";
+const $ = (id) => document.getElementById(id);
+
+/* ---------- state ---------- */
+let state = {
+  production: "", director: "", camera: "",
+  scene: "1", cut: 1, take: 1,
+  sound: true,
+  logs: [] // {id, ts, scene, cut, take, judge, memo}
+};
+
+function load() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) state = Object.assign(state, JSON.parse(raw));
+  } catch (e) { /* corrupted storage: start fresh */ }
+}
+function save() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {}
+}
+
+/* ---------- helpers ---------- */
+function pad(n) { return String(n).padStart(2, "0"); }
+function fmtTime(ts) {
+  const d = new Date(ts);
+  return pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+}
+function fmtDate(ts) {
+  const d = new Date(ts);
+  return d.getFullYear() + "/" + pad(d.getMonth() + 1) + "/" + pad(d.getDate());
+}
+function sctLabel(l) { return "S" + l.scene + " / C" + l.cut + " / T" + l.take; }
+// "12A" -> increment numeric part, keep suffix
+function bumpScene(s, d) {
+  const m = String(s).match(/^(\d+)(.*)$/);
+  if (!m) return d > 0 ? s + "2" : s;
+  const n = Math.max(1, parseInt(m[1], 10) + d);
+  return n + m[2];
+}
+
+/* ---------- clap sound (WebAudio, synthesized) ---------- */
+let audioCtx = null;
+function clapSound() {
+  if (!state.sound) return;
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    const t0 = audioCtx.currentTime;
+    // sharp noise burst
+    const len = Math.floor(audioCtx.sampleRate * 0.09);
+    const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+    const ch = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.2);
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    const hp = audioCtx.createBiquadFilter();
+    hp.type = "highpass"; hp.frequency.value = 900;
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0.9, t0);
+    src.connect(hp).connect(g).connect(audioCtx.destination);
+    src.start(t0);
+    // low "wood" thump
+    const osc = audioCtx.createOscillator();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(190, t0);
+    osc.frequency.exponentialRampToValueAtTime(70, t0 + 0.09);
+    const og = audioCtx.createGain();
+    og.gain.setValueAtTime(0.5, t0);
+    og.gain.exponentialRampToValueAtTime(0.001, t0 + 0.11);
+    osc.connect(og).connect(audioCtx.destination);
+    osc.start(t0); osc.stop(t0 + 0.12);
+  } catch (e) {}
+}
+
+/* ---------- rendering ---------- */
+function renderBoard() {
+  $("production").value = state.production;
+  $("director").value = state.director;
+  $("camera").value = state.camera;
+  $("scene").value = state.scene;
+  $("cut").value = state.cut;
+  $("take").value = state.take;
+  $("date").value = fmtDate(Date.now());
+  $("soundBtn").textContent = state.sound ? "🔊" : "🔇";
+}
+
+function lastLog() { return state.logs[state.logs.length - 1] || null; }
+
+function renderLast() {
+  const l = lastLog();
+  const label = $("lastLabel");
+  const btns = document.querySelectorAll("#lastTake .judgeRow button");
+  if (!l) {
+    label.textContent = "まだ記録がありません";
+    btns.forEach(b => { b.classList.remove("on"); b.disabled = true; });
+    $("lastMemo").value = "";
+    $("lastMemo").disabled = true;
+    return;
+  }
+  label.textContent = sctLabel(l) + "  (" + fmtTime(l.ts) + ")";
+  btns.forEach(b => {
+    b.disabled = false;
+    b.classList.toggle("on", l.judge === b.dataset.j);
+  });
+  $("lastMemo").disabled = false;
+  if ($("lastMemo").value !== l.memo) $("lastMemo").value = l.memo;
+}
+
+function renderHistory() {
+  const list = $("histList");
+  list.textContent = "";
+  $("histCount").textContent = state.logs.length ? state.logs.length + " テイク" : "";
+  if (!state.logs.length) {
+    const e = document.createElement("div");
+    e.id = "histEmpty";
+    e.textContent = "「🎬 カチン！」でテイクを記録すると、ここに履歴が並びます。";
+    list.appendChild(e);
+    return;
+  }
+  // newest first
+  for (let i = state.logs.length - 1; i >= 0; i--) {
+    const l = state.logs[i];
+    const row = document.createElement("div");
+    row.className = "hrow";
+
+    const sct = document.createElement("span");
+    sct.className = "sct";
+    sct.textContent = sctLabel(l);
+
+    const time = document.createElement("span");
+    time.className = "time";
+    time.textContent = fmtTime(l.ts);
+
+    const badge = document.createElement("button");
+    badge.className = "badge" + (l.judge ? " " + l.judge : "");
+    badge.textContent = l.judge || "—";
+    badge.addEventListener("click", () => {
+      const cycle = [null, "OK", "KEEP", "NG"];
+      l.judge = cycle[(cycle.indexOf(l.judge) + 1) % cycle.length];
+      save(); renderHistory(); renderLast();
+    });
+
+    const memo = document.createElement("input");
+    memo.className = "hmemo";
+    memo.placeholder = "メモ";
+    memo.value = l.memo;
+    memo.addEventListener("input", () => { l.memo = memo.value; save(); renderLast(); });
+
+    const del = document.createElement("button");
+    del.className = "del";
+    del.textContent = "✕";
+    del.addEventListener("click", () => {
+      if (!confirm(sctLabel(l) + " の記録を削除しますか?")) return;
+      state.logs.splice(i, 1);
+      save(); renderHistory(); renderLast();
+    });
+
+    row.append(sct, time, badge, memo, del);
+    list.appendChild(row);
+  }
+}
+
+/* ---------- actions ---------- */
+function clap() {
+  const entry = {
+    id: Date.now() + "-" + Math.floor(Math.random() * 1e6),
+    ts: Date.now(),
+    scene: state.scene, cut: state.cut, take: state.take,
+    judge: null, memo: ""
+  };
+  state.logs.push(entry);
+
+  clapSound();
+  const sticks = $("sticks");
+  sticks.classList.remove("clap");
+  void sticks.offsetWidth; // restart animation
+  sticks.classList.add("clap");
+
+  const flash = $("flash");
+  $("flashSct").textContent = sctLabel(entry);
+  $("flashTime").textContent = fmtTime(entry.ts);
+  flash.classList.remove("show");
+  void flash.offsetWidth;
+  flash.classList.add("show");
+
+  state.take += 1; // next clap = next take
+  save();
+  renderBoard(); renderLast(); renderHistory();
+}
+
+function nextCut() {
+  state.cut += 1; state.take = 1;
+  save(); renderBoard();
+}
+function nextScene() {
+  state.scene = bumpScene(state.scene, 1);
+  state.cut = 1; state.take = 1;
+  save(); renderBoard();
+}
+
+function csvText() {
+  const esc = (v) => '"' + String(v ?? "").replace(/"/g, '""') + '"';
+  const head = ["日付", "時刻", "シーン", "カット", "テイク", "判定", "メモ", "作品名", "監督", "撮影"];
+  const rows = state.logs.map(l => [
+    fmtDate(l.ts), fmtTime(l.ts), l.scene, l.cut, l.take,
+    l.judge || "", l.memo, state.production, state.director, state.camera
+  ]);
+  return "﻿" + [head, ...rows].map(r => r.map(esc).join(",")).join("\r\n");
+}
+function csvFileName() {
+  const d = new Date();
+  const name = (state.production || "scene-memo").replace(/[\\/:*?"<>|\s]+/g, "_");
+  return name + "_" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + ".csv";
+}
+function exportCsv() {
+  if (!state.logs.length) { alert("記録がまだありません。"); return; }
+  const blob = new Blob([csvText()], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = csvFileName();
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+}
+async function shareCsv() {
+  if (!state.logs.length) { alert("記録がまだありません。"); return; }
+  const file = new File([csvText()], csvFileName(), { type: "text/csv" });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: "シーンメモ " + (state.production || "") });
+      return;
+    } catch (e) { if (e.name === "AbortError") return; }
+  }
+  exportCsv(); // fallback
+}
+
+function clearAll() {
+  if (!state.logs.length) return;
+  if (!confirm("テイク履歴をすべて削除しますか?(作品名などの設定は残ります)\n削除前にCSV書き出しをおすすめします。")) return;
+  state.logs = [];
+  state.scene = "1"; state.cut = 1; state.take = 1;
+  save(); renderBoard(); renderLast(); renderHistory();
+}
+
+/* ---------- wiring ---------- */
+function bind() {
+  $("clapBtn").addEventListener("click", clap);
+  $("sticks").addEventListener("click", clap);
+  $("nextCut").addEventListener("click", nextCut);
+  $("nextScene").addEventListener("click", nextScene);
+  $("exportBtn").addEventListener("click", exportCsv);
+  $("shareBtn").addEventListener("click", shareCsv);
+  $("clearBtn").addEventListener("click", clearAll);
+  $("soundBtn").addEventListener("click", () => {
+    state.sound = !state.sound;
+    save(); renderBoard();
+    if (state.sound) clapSound();
+  });
+
+  // steppers
+  document.querySelectorAll(".stepper button").forEach(b => {
+    b.addEventListener("click", () => {
+      const t = b.dataset.t, d = parseInt(b.dataset.d, 10);
+      if (t === "scene") state.scene = bumpScene(state.scene, d);
+      else state[t] = Math.max(1, state[t] + d);
+      save(); renderBoard();
+    });
+  });
+
+  // text fields
+  [["production", "production"], ["director", "director"], ["camera", "camera"]].forEach(([id, key]) => {
+    $(id).addEventListener("input", () => { state[key] = $(id).value; save(); });
+  });
+  $("scene").addEventListener("change", () => {
+    state.scene = $("scene").value.trim() || "1";
+    save(); renderBoard();
+  });
+  [["cut", "cut"], ["take", "take"]].forEach(([id, key]) => {
+    $(id).addEventListener("change", () => {
+      const n = parseInt($(id).value, 10);
+      state[key] = (Number.isFinite(n) && n >= 1) ? n : 1;
+      save(); renderBoard();
+    });
+  });
+
+  // last-take judgment
+  document.querySelectorAll("#lastTake .judgeRow button").forEach(b => {
+    b.addEventListener("click", () => {
+      const l = lastLog();
+      if (!l) return;
+      l.judge = (l.judge === b.dataset.j) ? null : b.dataset.j;
+      save(); renderLast(); renderHistory();
+    });
+  });
+  $("lastMemo").addEventListener("input", () => {
+    const l = lastLog();
+    if (!l) return;
+    l.memo = $("lastMemo").value;
+    save(); renderHistory();
+  });
+}
+
+/* ---------- clock / wake lock / sw ---------- */
+setInterval(() => {
+  const n = new Date();
+  $("clock").textContent = pad(n.getHours()) + ":" + pad(n.getMinutes()) + ":" + pad(n.getSeconds());
+}, 250);
+
+let wakeLock = null;
+async function keepAwake() {
+  try {
+    if ("wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen");
+  } catch (e) {}
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") keepAwake();
+});
+document.addEventListener("click", function once() {
+  keepAwake();
+  document.removeEventListener("click", once);
+});
+
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+
+/* ---------- boot ---------- */
+load();
+bind();
+renderBoard();
+renderLast();
+renderHistory();
+</script>
+</body>
+</html>
