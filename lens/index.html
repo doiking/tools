@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0e0e11">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<title>レンズ画角シミュレーター — 8hammer</title>
+<style>
+  :root {
+    --bg: #0e0e11;
+    --panel: #1c1c22;
+    --line: #33333c;
+    --fg: #f2f2ee;
+    --dim: #9a9aa4;
+    --accent: #f7c114;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    touch-action: manipulation;
+    padding: calc(10px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
+  }
+  #wrap { max-width: 1050px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+  #topbar { display: flex; align-items: center; gap: 12px; }
+  #topbar img { height: 24px; border-radius: 4px; }
+  #topbar h1 { font-size: 17px; font-weight: 700; margin: 0; flex: 1; }
+
+  #main { display: flex; gap: 12px; align-items: flex-start; }
+  #controls { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+  #results { flex: 1.15; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 12px 14px;
+  }
+  .ptitle { font-size: 12px; letter-spacing: .1em; color: var(--dim); margin-bottom: 8px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .chips button {
+    background: #24242c; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 18px;
+    font-size: 13.5px; padding: 8px 12px;
+  }
+  .chips button.sel { background: var(--accent); color: #17130a; border-color: var(--accent); font-weight: 700; }
+
+  .sliderRow { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .sliderRow input[type=range] { flex: 1; accent-color: var(--accent); height: 34px; }
+  .sliderRow input[type=number] {
+    width: 76px;
+    background: #16161b; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 8px;
+    font-size: 17px; font-weight: 700; padding: 7px 8px; text-align: right;
+    -webkit-user-select: text; user-select: text;
+  }
+  .sliderRow .unit { font-size: 13px; color: var(--dim); width: 26px; }
+  input[type=number]:focus, input[type=range]:focus { outline: none; }
+
+  #customSensor { display: none; margin-top: 10px; gap: 8px; align-items: center; font-size: 13px; color: var(--dim); }
+  #customSensor.show { display: flex; }
+  #customSensor input {
+    width: 80px;
+    background: #16161b; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 8px;
+    font-size: 15px; padding: 7px 8px; text-align: right;
+    -webkit-user-select: text; user-select: text;
+  }
+
+  #vidToggle { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 14px; }
+  #vidToggle input { width: 20px; height: 20px; accent-color: var(--accent); }
+
+  /* framing visual */
+  #frameBox { display: flex; justify-content: center; }
+  #frameSvg { width: 100%; max-width: 560px; height: auto; display: block; }
+  #shotType { text-align: center; font-size: 20px; font-weight: 800; color: var(--accent); margin-top: 8px; }
+  #frameSize { text-align: center; font-size: 13px; color: var(--dim); margin-top: 2px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  td { padding: 7px 4px; border-bottom: 1px solid #24242a; font-variant-numeric: tabular-nums; }
+  td:first-child { color: var(--dim); font-size: 13.5px; }
+  td:last-child { text-align: right; font-weight: 700; }
+  tr:last-child td { border-bottom: none; }
+
+  @media (max-width: 760px) {
+    #main { flex-direction: column; }
+    #controls, #results { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="topbar">
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAABQCAMAAAAA/tP+AAAAPFBMVEX3wRQDAAD50U9AMAW6kQ99YQr74IkSDAHotROceQ3JnRBfSAhPPAYxJATZqRIiGAOrhQ6MbQtuVAn86KfeHrGsAAAGSUlEQVR4nO2c6ZYjJwyFXQEGal/y/u8as4sCnJ45EaG6dX/ZxizmA4EE5ddfpJ7094vUlX793w0gpSIgnYmAdCYC0pkISGciIJ2JgHQmAtKZCEhnIiCdqSUQfoqZGQlxbA0rfpJaAZmudUi1z1Ojuh+lNkDGOw0rxpvU/ii1AML3Ig6tq0H1z1IDIFcVx1urwm/Ao4QORJWtVdCC3YCHCRsI5CEXcfJDzKkFG5Fb8DBhA5kjDhGsE2cAyI7cgocJGcgReSSb3BkQOXCb8DAhA4nW6bbDXSIQgduEhwkXSJwg7JayDdWkny1cIHHHmy3dCwEpChdIXLwzn1yUgBzGxMmf7C7iApGh17MkHpJA94vat3+OcIHEhSKbIXF5AdbsYAQEtfSh1OtW0WQlgfiRgGAquulZhGSppBAQTAH/73YgpWrGjIBgaqx6G8Fi3XdUOwHBFIgjzvDzyX+ahd8ZAcEUmCKQSIgBy+w4hIDgCsZ1mV9HAo89P1b3QNQh3hohMMW5MOIKfsb5aNYhDjJso34TS5/010SWwrM6zDcuxth8hlVv05nt2+kU4vzDrvia0M9D4OGHtHHEwKN0XGiBHH4TJn0seIJoh8X1lguJidc2OydUR5XDET5zFbgVC6S8p+t2+SxwT77FjYgbQG6W89fk6sDpKSf0E8Mpeut6SryHYzhiv0rHt6bfYee7rhdDIhfNd5u1C2zn5AHGwJJkhof7Myww7vQO2Fxp6nYu7OjHCO4BDv6Z+pae4cps7KfyLHb/wm3D7DZgZWxNupoHf0ZCiquv1OJUEdIKoEgmk8J8QGcWwuZnNnP6C+YXphpcclDLUFBxerw8EGOSTtuDIMGYPJ4aDtvB8j3IlR/0OrcbB94aHVnKIM9Qh/RN1UXbhc0aKjsPnWGUYhK2JkQ1uZeV2IEh6ahMDIzYGfb8xJg7BLbD2PeLwW2Ni3P/bW7TueH0S4EU17+2AAHruEDBpnK3gJuijJXk2FfJ2lyUU/DI1mqtIGGgT6ZkKkTtEIgAZuQAw9rSCceRWYqbeQokGIZ+RnJQLgOvkdXoKulWuAy0F5EkfkgFyJwBcSNZwQwiBwJTfIgA0B2zOcVAo9qc/Te6SprbLIOkMP8TIJU4isiA+Dew23kVyAFTwJQ0oP0wyYC0uYrcAkgwWGs2T5bPnnrFbR+rQNYqEFZLAUDMy5MbX1OwO5A//fm/pwZANuiMids938xX/wREvT3rhbmdbxFItdu/BCSfw1exHZjCBxI8Q9cDY4pE3ojUgUzp9rkFELd5+1ZAAo8YZ0+RyPSkpApkHFJhAbEmy6rYKFxhAwk84KZRJRfi05OSGhCzEO8n3xTn0F34z4GUHI3vAyTEFm9xxGTblWx/a0B0QT5YzzGBlC5Sfh8gIb50H3cw5siyHPmbCc6y3wASyt7vKbVdVun5iG8DJNj93MuN14DS8/YciJkWSR/mfshYyJ0CGb4AxG7Pa2cC38APUWEaFAwziKZAHxh6EqCzYCAjCTOlDnk2D34LyFizWTCegyxUIKfvcVlIBNetYRfAjrsDkTC4mEwXUcj9L0D8rg92th1A4UhwXKf8O8hCBRK2t8Xn1qLb/hmI6R+Lbx85P9zU8kHAz0DCoT1MOSAqGDh0I2gV+sxWnw/C4OLzgYSrJeVHQOY8+bghdHsC9QLbgyDtUsYn5jQ2keyxeXwdytVTNebZQB3TrU2xGeCcEfc43QgTSHTlikBE/jvvV+Kdb67HJtiW7aPwH6fMWZJ7iq9juS+Yh4M63fi/Oa0a0xnfN3i2CBOI+PxDYiQkGAPOnBa7zk9CvF9bXso+LMou3Uk6omV2VovLYP4W4kxzm3/ymHXhhy/XLBzhjTFnysTH4gOQx8VsRUzYYjYWWtXAarUBUnwmJ64hiG14nNoAKe3t4y6LHlUHagSkYLMKFovUalEvXGqIifSMIRQmEOD6ZUTi1kXSP2dBoTqGie/AQIDkYFVSP12oQPiQSC5C6PvSSzX2Tmr2nHpFknjchHwekl+QS7TSv/zdhX2EKz7gkPQvJ7nwLznkUUGrXdCfyRXU4l7Wmd8jXS8yVmU1utvLR3Ex/5+9I7nmddE/W3cmAtKZCEhnIiCdiYB0JgLSmQhIZyIgnYmAdCYC0pkISGf69Q+VTy88x/peXAAAAABJRU5ErkJggg==" alt="8hammer">
+    <h1>レンズ画角シミュレーター</h1>
+  </div>
+
+  <div id="main">
+    <div id="controls">
+      <div class="panel">
+        <div class="ptitle">センサー</div>
+        <div class="chips" id="sensorChips"></div>
+        <div id="customSensor">
+          <span>横</span><input id="csW" inputmode="decimal"><span>mm × 縦</span>
+          <input id="csH" inputmode="decimal"><span>mm</span>
+        </div>
+        <label id="vidToggle"><input type="checkbox" id="crop169">16:9で計算(動画撮影)</label>
+      </div>
+
+      <div class="panel">
+        <div class="ptitle">焦点距離</div>
+        <div class="chips" id="focalChips"></div>
+        <div class="sliderRow">
+          <input type="range" id="focalR" min="8" max="400" step="1">
+          <input type="number" id="focalN" min="1" max="2000" step="1"><span class="unit">mm</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ptitle">被写体までの距離</div>
+        <div class="chips" id="distChips"></div>
+        <div class="sliderRow">
+          <input type="range" id="distR" min="0.5" max="30" step="0.1">
+          <input type="number" id="distN" min="0.1" max="500" step="0.1"><span class="unit">m</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ptitle">絞り(被写界深度用)</div>
+        <div class="chips" id="fnumChips"></div>
+      </div>
+    </div>
+
+    <div id="results">
+      <div class="panel">
+        <div class="ptitle">この距離での写り(身長170cmの人物)</div>
+        <div id="frameBox"><svg id="frameSvg" xmlns="http://www.w3.org/2000/svg"></svg></div>
+        <div id="shotType"></div>
+        <div id="frameSize"></div>
+      </div>
+      <div class="panel">
+        <div class="ptitle">計算結果</div>
+        <table id="out"></table>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="font-size:12.5px;color:var(--dim);line-height:1.7">
+    被写界深度は許容錯乱円 = センサー対角 ÷ 1442(フルサイズで0.030mm)で計算。
+    画角・撮影範囲は薄レンズ近似のため、接写やブリージングの大きいレンズでは実際と多少ずれます。
+  </div>
+</div>
+
+<script>
+"use strict";
+const LS_KEY = "lens.v1";
+const $ = (id) => document.getElementById(id);
+const R2D = 180 / Math.PI;
+
+const SENSORS = [
+  { n: "フルサイズ", w: 36.0, h: 24.0 },
+  { n: "Super35", w: 24.9, h: 18.7 },
+  { n: "APS-C", w: 23.6, h: 15.6 },
+  { n: "マイクロフォーサーズ", w: 17.3, h: 13.0 },
+  { n: "1型", w: 13.2, h: 8.8 },
+  { n: "1/2.3型", w: 6.17, h: 4.55 },
+  { n: "カスタム", custom: true },
+];
+const FOCALS = [16, 24, 35, 50, 85, 135, 200];
+const DISTS = [1, 2, 3, 5, 10, 20];
+const FNUMS = [1.4, 2, 2.8, 4, 5.6, 8, 11, 16, 22];
+
+let state = {
+  sensor: "フルサイズ", csW: 36, csH: 24,
+  focal: 35, dist: 3, fnum: 2.8, crop169: true,
+};
+try { Object.assign(state, JSON.parse(localStorage.getItem(LS_KEY) || "{}")); } catch (e) {}
+function save() { try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {} }
+
+function sensorDims() {
+  const s = SENSORS.find(x => x.n === state.sensor) || SENSORS[0];
+  let w = s.custom ? state.csW : s.w;
+  let h = s.custom ? state.csH : s.h;
+  if (state.crop169) {
+    // largest 16:9 rectangle inside the native sensor
+    if (w / h > 16 / 9) w = h * 16 / 9;
+    else h = w * 9 / 16;
+  }
+  return { w, h };
+}
+
+/* ---------- rendering helpers ---------- */
+function chips(elId, items, getSel, onPick, label) {
+  const box = $(elId);
+  box.textContent = "";
+  for (const it of items) {
+    const b = document.createElement("button");
+    b.textContent = label(it);
+    if (getSel(it)) b.classList.add("sel");
+    b.addEventListener("click", () => { onPick(it); renderChipsAll(); calc(); });
+    box.appendChild(b);
+  }
+}
+function renderChipsAll() {
+  chips("sensorChips", SENSORS, s => s.n === state.sensor,
+    s => { state.sensor = s.n; save(); }, s => s.n);
+  $("customSensor").classList.toggle("show", state.sensor === "カスタム");
+  chips("focalChips", FOCALS, f => f === state.focal,
+    f => { state.focal = f; save(); }, f => f + "mm");
+  chips("distChips", DISTS, d => d === state.dist,
+    d => { state.dist = d; save(); }, d => d + "m");
+  chips("fnumChips", FNUMS, f => f === state.fnum,
+    f => { state.fnum = f; save(); }, f => "F" + f);
+  $("focalR").value = state.focal; $("focalN").value = state.focal;
+  $("distR").value = state.dist; $("distN").value = state.dist;
+  $("crop169").checked = state.crop169;
+  $("csW").value = state.csW; $("csH").value = state.csH;
+}
+
+/* ---------- math + output ---------- */
+function shotLabel(fovH) {
+  // 頭上に8%のヘッドルームを取った時に写る範囲で判定
+  if (fovH >= 3.2) return "全身(引き・背景広め)";
+  if (fovH >= 1.85) return "全身(フルショット)";
+  if (fovH >= 1.55) return "すね上(足元カット)";
+  if (fovH >= 1.3) return "膝上(ニーショット)";
+  if (fovH >= 0.95) return "腰上(ウエストショット)";
+  if (fovH >= 0.6) return "バストアップ";
+  if (fovH >= 0.38) return "顔アップ(クローズアップ)";
+  return "超クローズアップ";
+}
+
+function calc() {
+  const { w, h } = sensorDims();
+  const f = state.focal, s = state.dist * 1000, N = state.fnum;
+  if (!(w > 0 && h > 0 && f > 0 && s > 0)) return;
+
+  const diag = Math.hypot(w, h);
+  const angH = 2 * Math.atan(w / (2 * f)) * R2D;
+  const angV = 2 * Math.atan(h / (2 * f)) * R2D;
+  const angD = 2 * Math.atan(diag / (2 * f)) * R2D;
+
+  // 35mm equivalent focal length (same-aspect comparison)
+  const ffDiag = state.crop169 ? Math.hypot(36, 20.25) : Math.hypot(36, 24);
+  const cropFactor = ffDiag / diag;
+  const eq = f * cropFactor;
+
+  // field of view at subject distance (thin lens; use s - f for magnification)
+  const mag = f / Math.max(1, s - f);
+  const fovW = w / mag / 1000, fovH = h / mag / 1000; // meters
+
+  // depth of field
+  const coc = diag / 1442; // 0.030mm on full-frame diagonal
+  const H = f * f / (N * coc) + f; // hyperfocal (mm)
+  const near = s * (H - f) / (H + s - 2 * f);
+  const far = s < H ? s * (H - f) / (H - s) : Infinity;
+  const dof = far === Infinity ? Infinity : far - near;
+  const fmm = (mm) => mm === Infinity ? "∞" : (mm / 1000).toFixed(mm < 10000 ? 2 : 1) + "m";
+
+  const rows = [
+    ["水平画角", angH.toFixed(1) + "°"],
+    ["垂直画角", angV.toFixed(1) + "°"],
+    ["対角画角", angD.toFixed(1) + "°"],
+    ["35mm判換算", Math.round(eq) + "mm(×" + cropFactor.toFixed(2) + ")"],
+    ["撮影範囲(" + state.dist + "m先)", fovW.toFixed(2) + "m × " + fovH.toFixed(2) + "m"],
+    ["ピントが合う範囲", fmm(near) + " 〜 " + fmm(far)],
+    ["被写界深度", dof === Infinity ? "∞" : (dof / 1000).toFixed(2) + "m"],
+    ["過焦点距離", (H / 1000).toFixed(1) + "m(F" + N + ")"],
+  ];
+  const tbl = $("out");
+  tbl.textContent = "";
+  for (const [k, v] of rows) {
+    const tr = document.createElement("tr");
+    const td1 = document.createElement("td"); td1.textContent = k;
+    const td2 = document.createElement("td"); td2.textContent = v;
+    tr.append(td1, td2);
+    tbl.appendChild(tr);
+  }
+
+  $("shotType").textContent = shotLabel(fovH);
+  $("frameSize").textContent = "フレーム: 横" + fovW.toFixed(2) + "m × 縦" + fovH.toFixed(2) + "m / " +
+    (state.crop169 ? "16:9" : "センサーネイティブ") + " / " + w.toFixed(1) + "×" + h.toFixed(1) + "mm";
+  drawFrame(fovW, fovH);
+}
+
+function drawFrame(fovW, fovH) {
+  const svg = $("frameSvg");
+  const W = 560, H = W * fovH / fovW;
+  const Hc = Math.min(Math.max(H, 140), 460); // clamp displayed height
+  const scale = Math.min(W / fovW, Hc / fovH);
+  const fw = fovW * scale, fh = fovH * scale;
+  svg.setAttribute("viewBox", "0 0 " + W + " " + (Hc + 4));
+  svg.textContent = "";
+  const NS = "http://www.w3.org/2000/svg";
+  const el = (tag, attrs) => {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  };
+  const ox = (W - fw) / 2, oy = (Hc + 4 - fh) / 2;
+
+  // frame
+  svg.appendChild(el("rect", { x: ox, y: oy, width: fw, height: fh, fill: "#101014", stroke: "#f7c114", "stroke-width": 2, rx: 4 }));
+  // rule-of-thirds
+  for (let i = 1; i <= 2; i++) {
+    svg.appendChild(el("line", { x1: ox + fw * i / 3, y1: oy, x2: ox + fw * i / 3, y2: oy + fh, stroke: "#2c2c34", "stroke-width": 1 }));
+    svg.appendChild(el("line", { x1: ox, y1: oy + fh * i / 3, x2: ox + fw, y2: oy + fh * i / 3, stroke: "#2c2c34", "stroke-width": 1 }));
+  }
+
+  // person: 1.7m tall. Wide enough frame → centered with margin;
+  // tighter frame → head anchored with 8% headroom, cropped at the bottom
+  const pxPerM = fh / fovH;
+  const ph = 1.7 * pxPerM;
+  const cx = ox + fw / 2;
+  const topY = fovH >= 1.85 ? oy + (fh - ph) / 2 : oy + fh * 0.08;
+  const headCy = topY + ph * 0.075;
+  const clip = el("clipPath", { id: "fclip" });
+  clip.appendChild(el("rect", { x: ox, y: oy, width: fw, height: fh }));
+  const defs = el("defs", {});
+  defs.appendChild(clip);
+  svg.appendChild(defs);
+  const g = el("g", { "clip-path": "url(#fclip)", fill: "#8a8a94" });
+  // head
+  g.appendChild(el("circle", { cx: cx, cy: headCy, r: ph * 0.075 }));
+  // body (torso + legs as rounded shapes)
+  g.appendChild(el("rect", { x: cx - ph * 0.115, y: headCy + ph * 0.09, width: ph * 0.23, height: ph * 0.34, rx: ph * 0.07 }));
+  g.appendChild(el("rect", { x: cx - ph * 0.095, y: headCy + ph * 0.40, width: ph * 0.085, height: ph * 0.48, rx: ph * 0.04 }));
+  g.appendChild(el("rect", { x: cx + ph * 0.01, y: headCy + ph * 0.40, width: ph * 0.085, height: ph * 0.48, rx: ph * 0.04 }));
+  svg.appendChild(g);
+
+  // scale bar: 1m
+  const bx = ox + 10, by = oy + fh - 12;
+  svg.appendChild(el("rect", { x: bx, y: by, width: Math.min(pxPerM, fw - 20), height: 3, fill: "#f7c114" }));
+  const t = el("text", { x: bx, y: by - 5, fill: "#9a9aa4", "font-size": 11 });
+  t.textContent = "1m";
+  svg.appendChild(t);
+}
+
+/* ---------- inputs ---------- */
+function bindPair(rId, nId, key, min, max) {
+  const apply = (v) => {
+    v = Math.min(max, Math.max(min, v));
+    state[key] = v; save(); renderChipsAll(); calc();
+  };
+  $(rId).addEventListener("input", () => {
+    state[key] = parseFloat($(rId).value);
+    $(nId).value = state[key];
+    save(); calc();
+  });
+  $(rId).addEventListener("change", () => renderChipsAll());
+  $(nId).addEventListener("change", () => {
+    const v = parseFloat($(nId).value);
+    if (Number.isFinite(v)) apply(v); else renderChipsAll();
+  });
+}
+bindPair("focalR", "focalN", "focal", 1, 2000);
+bindPair("distR", "distN", "dist", 0.1, 500);
+$("crop169").addEventListener("change", () => { state.crop169 = $("crop169").checked; save(); calc(); });
+for (const id of ["csW", "csH"]) {
+  $(id).addEventListener("change", () => {
+    const v = parseFloat($(id).value);
+    if (Number.isFinite(v) && v > 0) { state[id] = v; save(); calc(); }
+    else renderChipsAll();
+  });
+}
+
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+
+renderChipsAll();
+calc();
+</script>
+</body>
+</html>
