@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0e0e11">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<title>配信ビットレート計算機 — 8hammer</title>
+<style>
+  :root {
+    --bg: #0e0e11;
+    --panel: #1c1c22;
+    --line: #33333c;
+    --fg: #f2f2ee;
+    --dim: #9a9aa4;
+    --accent: #f7c114;
+    --ok: #3ecf6e;
+    --warn: #e8963c;
+    --ng: #ff5a5a;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    touch-action: manipulation;
+    padding: calc(10px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
+  }
+  #wrap { max-width: 1000px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+  #topbar { display: flex; align-items: center; gap: 12px; }
+  #topbar img { height: 24px; border-radius: 4px; }
+  #topbar h1 { font-size: 17px; font-weight: 700; margin: 0; flex: 1; }
+
+  #main { display: flex; gap: 12px; align-items: flex-start; }
+  #left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+  #right { flex: 1.1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 12px 14px;
+  }
+  .ptitle { font-size: 12px; letter-spacing: .1em; color: var(--dim); margin-bottom: 8px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .chips button {
+    background: #24242c; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 18px;
+    font-size: 14px; padding: 9px 13px;
+  }
+  .chips button.sel { background: var(--accent); color: #17130a; border-color: var(--accent); font-weight: 700; }
+  .sub { margin-top: 10px; }
+
+  /* results */
+  #bigResult {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--accent);
+    border-radius: 14px;
+    padding: 14px 16px;
+  }
+  #bigResult .lbl { font-size: 13px; color: var(--dim); }
+  #bigResult .val { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; margin: 2px 0; }
+  #bigResult .rng { font-size: 14px; color: var(--dim); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  td { padding: 8px 4px; border-bottom: 1px solid #24242a; font-variant-numeric: tabular-nums; }
+  td:first-child { color: var(--dim); font-size: 13.5px; }
+  td:last-child { text-align: right; font-weight: 700; }
+  tr:last-child td { border-bottom: none; }
+
+  /* upload check */
+  #upRow { display: flex; align-items: center; gap: 10px; }
+  #upRow input {
+    width: 110px;
+    background: #16161b; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 10px;
+    font-size: 22px; font-weight: 800; padding: 9px 10px; text-align: right;
+    -webkit-user-select: text; user-select: text;
+  }
+  #upRow input:focus { outline: none; border-color: var(--accent); }
+  #upRow .unit { font-size: 14px; color: var(--dim); }
+  #verdict {
+    margin-top: 10px;
+    padding: 12px 14px;
+    border-radius: 11px;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.6;
+  }
+  #verdict.ok { background: rgba(62,207,110,.13); color: var(--ok); }
+  #verdict.warn { background: rgba(232,150,60,.13); color: var(--warn); }
+  #verdict.ng { background: rgba(255,90,90,.13); color: var(--ng); }
+
+  #matrix td { text-align: center; font-size: 13.5px; padding: 7px 2px; }
+  #matrix td:first-child { text-align: left; color: var(--dim); }
+  #matrix .OK { color: var(--ok); font-weight: 800; }
+  #matrix .MURI { color: var(--ng); font-weight: 700; }
+  #matrix .GIRI { color: var(--warn); font-weight: 700; }
+  #matrix th { font-size: 12px; color: var(--dim); font-weight: 600; padding: 4px 2px; }
+
+  .note { font-size: 12.5px; color: var(--dim); line-height: 1.7; }
+
+  @media (max-width: 760px) {
+    #main { flex-direction: column; }
+    #left, #right { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="topbar">
+    <img src="data:image/png;base64,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" alt="8hammer">
+    <h1>配信ビットレート計算機</h1>
+  </div>
+
+  <div id="main">
+    <div id="left">
+      <div class="panel">
+        <div class="ptitle">解像度</div>
+        <div class="chips" id="resChips"></div>
+        <div class="ptitle sub">フレームレート</div>
+        <div class="chips" id="fpsChips"></div>
+        <div class="ptitle sub">コーデック</div>
+        <div class="chips" id="codecChips"></div>
+        <div class="ptitle sub">映像の動き</div>
+        <div class="chips" id="motionChips"></div>
+        <div class="ptitle sub">音声ビットレート</div>
+        <div class="chips" id="audioChips"></div>
+        <div class="ptitle sub">回線余裕(ヘッドルーム)</div>
+        <div class="chips" id="headChips"></div>
+      </div>
+
+      <div class="panel">
+        <div class="ptitle">回線から逆引き — 会場の上り実測値を入力</div>
+        <div id="upRow">
+          <input id="upload" inputmode="decimal" placeholder="--">
+          <span class="unit">Mbps(上り)</span>
+        </div>
+        <div id="verdict" style="display:none"></div>
+      </div>
+    </div>
+
+    <div id="right">
+      <div id="bigResult">
+        <div class="lbl" id="bigLbl"></div>
+        <div class="val" id="bigVal"></div>
+        <div class="rng" id="bigRng"></div>
+      </div>
+
+      <div class="panel">
+        <div class="ptitle">計算結果</div>
+        <table id="out"></table>
+      </div>
+
+      <div class="panel">
+        <div class="ptitle" id="mxTitle">この回線でいける設定(現在のコーデック・動き・余裕率で判定)</div>
+        <table id="matrix"></table>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel note">
+    推奨ビットレートはYouTube Live推奨値(H.264)ベース。HEVCは約0.65倍、AV1は約0.5倍で換算。
+    「動き:大きい」はスポーツ・ライブ演出・カメラスイッチング多めの想定です。
+    上り回線は変動するため、実測値×ヘッドルーム(通常2.5倍、有線で安定していれば2倍)以内に総ビットレートを収めてください。
+    本番ではバックアップ回線(別キャリアのモバイル回線など)の用意をおすすめします。
+  </div>
+</div>
+
+<script>
+"use strict";
+const LS_KEY = "bitrate.v1";
+const $ = (id) => document.getElementById(id);
+
+// YouTube Live recommended H.264 video bitrate (Mbps): [min, mid(recommend), max]
+const TABLE = {
+  "2160p": { 30: [13, 23, 34], 60: [20, 35, 51] },
+  "1440p": { 30: [6, 9, 13],   60: [9, 13, 18] },
+  "1080p": { 30: [3, 4.5, 6],  60: [4.5, 6.8, 9] },
+  "720p":  { 30: [1.5, 2.5, 4],60: [2.25, 4, 6] },
+  "480p":  { 30: [0.5, 1.2, 2],60: [0.8, 1.8, 3] },
+};
+const RES = ["2160p", "1440p", "1080p", "720p", "480p"];
+const RES_LABEL = { "2160p": "4K (2160p)", "1440p": "1440p", "1080p": "1080p", "720p": "720p", "480p": "480p" };
+const FPS = [24, 25, 30, 50, 60];
+const CODECS = [
+  { n: "H.264", f: 1.0 },
+  { n: "HEVC (H.265)", f: 0.65 },
+  { n: "AV1", f: 0.5 },
+];
+const MOTIONS = [
+  { n: "少ない(セミナー・対談)", f: 0.8 },
+  { n: "標準", f: 1.0 },
+  { n: "大きい(ライブ・スポーツ)", f: 1.3 },
+];
+const AUDIO = [128, 192, 320]; // kbps
+const HEADROOM = [
+  { n: "×2(有線・安定)", f: 2 },
+  { n: "×2.5(標準)", f: 2.5 },
+  { n: "×3(モバイル回線)", f: 3 },
+];
+
+let state = { res: "1080p", fps: 30, codec: "H.264", motion: "標準", audio: 192, head: 2.5, upload: null };
+try { Object.assign(state, JSON.parse(localStorage.getItem(LS_KEY) || "{}")); } catch (e) {}
+function save() { try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {} }
+
+function fpsClass(fps) { return fps >= 50 ? 60 : 30; }
+function codecF() { return CODECS.find(c => c.n === state.codec).f; }
+function motionF() { return MOTIONS.find(m => m.n === state.motion).f; }
+
+function videoMbps(res, fps) {
+  const [lo, mid, hi] = TABLE[res][fpsClass(fps)];
+  const f = codecF() * motionF();
+  const clamp = (v) => Math.max(0.2, v * f);
+  return { lo: clamp(lo), mid: clamp(mid), hi: clamp(hi) };
+}
+
+function fmt(v, d) { return v.toFixed(v < 10 ? (d ?? 1) : 0); }
+
+function chips(elId, items, getSel, onPick, label) {
+  const box = $(elId);
+  box.textContent = "";
+  for (const it of items) {
+    const b = document.createElement("button");
+    b.textContent = label(it);
+    if (getSel(it)) b.classList.add("sel");
+    b.addEventListener("click", () => { onPick(it); render(); });
+    box.appendChild(b);
+  }
+}
+
+function render() {
+  save();
+  chips("resChips", RES, r => r === state.res, r => { state.res = r; }, r => RES_LABEL[r]);
+  chips("fpsChips", FPS, f => f === state.fps, f => { state.fps = f; }, f => f + "fps");
+  chips("codecChips", CODECS, c => c.n === state.codec, c => { state.codec = c.n; }, c => c.n);
+  chips("motionChips", MOTIONS, m => m.n === state.motion, m => { state.motion = m.n; }, m => m.n);
+  chips("audioChips", AUDIO, a => a === state.audio, a => { state.audio = a; }, a => a + "kbps");
+  chips("headChips", HEADROOM, h => h.f === state.head, h => { state.head = h.f; }, h => h.n);
+
+  const v = videoMbps(state.res, state.fps);
+  const audio = state.audio / 1000;
+  const total = v.mid + audio;
+  const needUp = total * state.head;
+  const gbPerH = total * 3600 / 8 / 1000;
+
+  $("bigLbl").textContent = RES_LABEL[state.res] + " / " + state.fps + "fps / " + state.codec + " の推奨ビットレート(映像)";
+  $("bigVal").textContent = fmt(v.mid) + " Mbps";
+  $("bigRng").textContent = "許容範囲: " + fmt(v.lo) + " 〜 " + fmt(v.hi) + " Mbps";
+
+  const rows = [
+    ["映像ビットレート(推奨)", fmt(v.mid) + " Mbps"],
+    ["音声ビットレート", state.audio + " kbps"],
+    ["総ビットレート", fmt(total) + " Mbps"],
+    ["必要な上り回線速度(×" + state.head + ")", fmt(needUp) + " Mbps 以上"],
+    ["録画・アーカイブ容量", gbPerH.toFixed(2) + " GB/時間"],
+    ["2時間配信の容量目安", (gbPerH * 2).toFixed(1) + " GB"],
+  ];
+  const tbl = $("out");
+  tbl.textContent = "";
+  for (const [k, val] of rows) {
+    const tr = document.createElement("tr");
+    const td1 = document.createElement("td"); td1.textContent = k;
+    const td2 = document.createElement("td"); td2.textContent = val;
+    tr.append(td1, td2);
+    tbl.appendChild(tr);
+  }
+
+  $("upload").value = state.upload ?? "";
+  renderVerdict(total, needUp);
+  renderMatrix();
+}
+
+function renderVerdict(total, needUp) {
+  const box = $("verdict");
+  if (!Number.isFinite(state.upload) || state.upload == null) { box.style.display = "none"; return; }
+  box.style.display = "block";
+  const up = state.upload;
+  const safe = up / state.head;          // total bitrate we can afford
+  box.classList.remove("ok", "warn", "ng");
+  if (up >= needUp) {
+    box.classList.add("ok");
+    box.textContent = "✓ この設定でいけます(必要 " + fmt(needUp) + " Mbps ≦ 実測 " + fmt(up) + " Mbps)";
+  } else if (up >= total * 1.5) {
+    box.classList.add("warn");
+    box.textContent = "△ ギリギリです。ビットレートを " + fmt(safe) + " Mbps 以下に下げるか、設定を落とすのが安全(推奨ヘッドルーム未満)";
+  } else {
+    box.classList.add("ng");
+    box.textContent = "✕ この回線では不足です。総ビットレートを " + fmt(safe) + " Mbps 以下に。下の表で安全な設定を確認してください";
+  }
+}
+
+function renderMatrix() {
+  const tbl = $("matrix");
+  tbl.textContent = "";
+  const up = state.upload;
+  $("mxTitle").textContent = Number.isFinite(up)
+    ? "上り " + up + " Mbps でいける設定(" + state.codec + "・×" + state.head + "判定)"
+    : "解像度×fpsの推奨ビットレート一覧(" + state.codec + ")— 上り速度を入力すると判定が出ます";
+
+  const head = document.createElement("tr");
+  head.appendChild(document.createElement("th"));
+  for (const f of [30, 60]) {
+    const th = document.createElement("th");
+    th.textContent = f === 30 ? "〜30fps" : "50/60fps";
+    head.appendChild(th);
+  }
+  tbl.appendChild(head);
+
+  for (const r of RES) {
+    const tr = document.createElement("tr");
+    const td0 = document.createElement("td");
+    td0.textContent = RES_LABEL[r];
+    tr.appendChild(td0);
+    for (const f of [30, 60]) {
+      const td = document.createElement("td");
+      const v = videoMbps(r, f);
+      const total = v.mid + state.audio / 1000;
+      if (Number.isFinite(up)) {
+        const need = total * state.head;
+        if (up >= need) { td.textContent = "◯ " + fmt(total); td.className = "OK"; }
+        else if (up >= total * 1.5) { td.textContent = "△ " + fmt(total); td.className = "GIRI"; }
+        else { td.textContent = "✕ " + fmt(total); td.className = "MURI"; }
+      } else {
+        td.textContent = fmt(total) + " Mbps";
+      }
+      td.title = RES_LABEL[r] + " " + f + "fps 総ビットレート " + fmt(total) + " Mbps";
+      tr.appendChild(td);
+    }
+    tbl.appendChild(tr);
+  }
+}
+
+$("upload").addEventListener("input", () => {
+  const v = parseFloat($("upload").value);
+  state.upload = Number.isFinite(v) && v > 0 ? v : null;
+  save();
+  const vv = videoMbps(state.res, state.fps);
+  const total = vv.mid + state.audio / 1000;
+  renderVerdict(total, total * state.head);
+  renderMatrix();
+});
+
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+render();
+</script>
+</body>
+</html>
