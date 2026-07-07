@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0e0e11">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<title>日の出・マジックアワー — 8hammer</title>
+<style>
+  :root {
+    --bg: #0e0e11;
+    --panel: #1c1c22;
+    --line: #33333c;
+    --fg: #f2f2ee;
+    --dim: #9a9aa4;
+    --accent: #f7c114;
+    --night: #1b2340;
+    --blue: #3d5aa8;
+    --golden: #e8963c;
+    --day: #7ec3e8;
+    --sab: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    touch-action: manipulation;
+    padding: calc(10px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) calc(16px + var(--sab)) calc(14px + env(safe-area-inset-left));
+  }
+  #wrap { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+  #topbar { display: flex; align-items: center; gap: 12px; }
+  #topbar img { height: 24px; border-radius: 4px; }
+  #topbar h1 { font-size: 17px; font-weight: 700; margin: 0; flex: 1; }
+  #tzNote { font-size: 11px; color: var(--dim); }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 12px 14px;
+  }
+  .ptitle { font-size: 12px; letter-spacing: .1em; color: var(--dim); margin-bottom: 8px; }
+
+  #cityChips { display: flex; flex-wrap: wrap; gap: 8px; }
+  #cityChips button {
+    background: #24242c; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 20px;
+    font-size: 14px; padding: 8px 14px;
+  }
+  #cityChips button.sel { background: var(--accent); color: #17130a; border-color: var(--accent); font-weight: 700; }
+  #gpsBtn { font-weight: 600; }
+
+  #coordRow { display: flex; gap: 8px; margin-top: 10px; align-items: center; flex-wrap: wrap; }
+  #coordRow label { font-size: 13px; color: var(--dim); }
+  #coordRow input {
+    width: 110px;
+    background: #16161b; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 8px;
+    font-size: 15px; padding: 8px 10px;
+    -webkit-user-select: text; user-select: text;
+  }
+  #coordRow input:focus { outline: none; border-color: var(--accent); }
+  #placeName { flex: 1; min-width: 120px; font-size: 14px; color: var(--dim); text-align: right; }
+
+  #dateRow { display: flex; gap: 8px; align-items: center; }
+  #dateRow button {
+    background: #24242c; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 10px;
+    font-size: 16px; padding: 10px 16px;
+  }
+  #dateInput {
+    flex: 1;
+    background: #16161b; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 10px;
+    font-size: 17px; font-weight: 600; padding: 9px 12px;
+    text-align: center;
+    font-family: inherit;
+    color-scheme: dark;
+  }
+
+  #mainCards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .big {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px 16px;
+  }
+  .big .lbl { font-size: 13px; color: var(--dim); }
+  .big .time { font-size: 40px; font-weight: 800; font-variant-numeric: tabular-nums; margin: 2px 0; }
+  .big .sub { font-size: 13px; color: var(--dim); }
+  .big.rise { border-left: 4px solid var(--golden); }
+  .big.set  { border-left: 4px solid #c96a2e; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  td { padding: 7px 4px; border-bottom: 1px solid #24242a; font-variant-numeric: tabular-nums; }
+  td:first-child { color: var(--dim); font-size: 13.5px; }
+  td:last-child { text-align: right; font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 8px; vertical-align: -1px; }
+
+  #timeline { height: 46px; border-radius: 10px; overflow: hidden; position: relative; border: 1px solid var(--line); }
+  #tlCanvas { width: 100%; height: 100%; display: block; }
+  #tlHours { display: flex; justify-content: space-between; font-size: 10px; color: var(--dim); margin-top: 3px; padding: 0 1px; }
+
+  @media (max-width: 620px) {
+    #mainCards { grid-template-columns: 1fr; }
+    .big .time { font-size: 34px; }
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="topbar">
+    <img src="data:image/png;base64,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" alt="8hammer">
+    <h1>日の出・マジックアワー</h1>
+    <span id="tzNote"></span>
+  </div>
+
+  <div class="panel">
+    <div class="ptitle">ロケ地</div>
+    <div id="cityChips"></div>
+    <div id="coordRow">
+      <label>緯度 <input id="lat" inputmode="decimal"></label>
+      <label>経度 <input id="lon" inputmode="decimal"></label>
+      <span id="placeName"></span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ptitle">日付</div>
+    <div id="dateRow">
+      <button id="prevDay">◀</button>
+      <input type="date" id="dateInput">
+      <button id="todayBtn">今日</button>
+      <button id="nextDay">▶</button>
+    </div>
+  </div>
+
+  <div id="mainCards">
+    <div class="big rise">
+      <div class="lbl">日の出 🌅</div>
+      <div class="time" id="riseTime">--:--</div>
+      <div class="sub" id="riseAz"></div>
+    </div>
+    <div class="big set">
+      <div class="lbl">日の入 🌇</div>
+      <div class="time" id="setTime">--:--</div>
+      <div class="sub" id="setAz"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ptitle">タイムライン(夜 → ブルーアワー → ゴールデンアワー → 昼)</div>
+    <div id="timeline"><canvas id="tlCanvas"></canvas></div>
+    <div id="tlHours"><span>0時</span><span>6時</span><span>12時</span><span>18時</span><span>24時</span></div>
+  </div>
+
+  <div class="panel">
+    <div class="ptitle">詳細</div>
+    <table id="detail"></table>
+  </div>
+
+  <div class="panel" style="font-size:12.5px; color:var(--dim); line-height:1.7">
+    ゴールデンアワー=太陽高度 −4°〜+6°、ブルーアワー=−6°〜−4°、市民薄明=−6°〜日の出 として計算(NOAAの太陽位置計算式、精度±1分程度)。
+    時刻はこの端末のタイムゾーンで表示しています。方角は真北基準です。
+  </div>
+</div>
+
+<script>
+"use strict";
+const LS_KEY = "sun.v1";
+const $ = (id) => document.getElementById(id);
+const D2R = Math.PI / 180, R2D = 180 / Math.PI;
+
+const CITIES = [
+  { n: "現在地", gps: true },
+  { n: "東京", la: 35.681, lo: 139.767 },
+  { n: "横浜", la: 35.466, lo: 139.622 },
+  { n: "名古屋", la: 35.171, lo: 136.882 },
+  { n: "大阪", la: 34.702, lo: 135.496 },
+  { n: "福岡", la: 33.590, lo: 130.402 },
+  { n: "札幌", la: 43.062, lo: 141.354 },
+  { n: "那覇", la: 26.212, lo: 127.679 },
+];
+
+let state = { lat: 35.681, lon: 139.767, city: "東京", dateStr: null };
+try { Object.assign(state, JSON.parse(localStorage.getItem(LS_KEY) || "{}")); } catch (e) {}
+state.dateStr = null; // always open on today
+
+function save() { try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {} }
+
+/* ---------- NOAA solar calculations ---------- */
+function dayOfYear(d) {
+  return Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 864e5);
+}
+function solarParams(doy, hourUTC) {
+  const g = 2 * Math.PI / 365 * (doy - 1 + (hourUTC - 12) / 24);
+  const eqtime = 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g)
+    - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
+  const decl = 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g)
+    - 0.006758 * Math.cos(2 * g) + 0.000907 * Math.sin(2 * g)
+    - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g);
+  return { eqtime, decl };
+}
+// crossing time (minutes UTC) when sun altitude == alt (deg); morning or evening
+function crossingUTC(date, lat, lon, altDeg, evening) {
+  const doy = dayOfYear(date);
+  let minutes = 720; // start at solar noon guess
+  for (let i = 0; i < 3; i++) {
+    const { eqtime, decl } = solarParams(doy, minutes / 60);
+    const zenith = (90 - altDeg) * D2R;
+    const cosHA = (Math.cos(zenith) - Math.sin(lat * D2R) * Math.sin(decl)) /
+                  (Math.cos(lat * D2R) * Math.cos(decl));
+    if (cosHA < -1 || cosHA > 1) return null; // sun never reaches this altitude
+    const ha = Math.acos(cosHA) * R2D;
+    minutes = 720 - 4 * (lon + (evening ? -ha : ha)) - eqtime;
+  }
+  return minutes;
+}
+function solarNoonUTC(date, lon) {
+  const doy = dayOfYear(date);
+  let m = 720 - 4 * lon;
+  const { eqtime } = solarParams(doy, m / 60);
+  return 720 - 4 * lon - eqtime;
+}
+function toLocal(date, minutesUTC) {
+  if (minutesUTC == null) return null;
+  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) + minutesUTC * 60000);
+}
+function azimuthAt(date, lat, lon, minutesUTC) {
+  const t = toLocal(date, minutesUTC);
+  if (!t) return null;
+  // standard formula: az measured from north
+  const utcH = t.getUTCHours() + t.getUTCMinutes() / 60;
+  const doy = dayOfYear(new Date(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate()));
+  const { eqtime, decl } = solarParams(doy, utcH);
+  const tst = (utcH * 60 + eqtime + 4 * lon + 1440) % 1440;
+  const haDeg = tst / 4 - 180;
+  const ha = haDeg * D2R, latR = lat * D2R;
+  const alt = Math.asin(Math.sin(latR) * Math.sin(decl) + Math.cos(latR) * Math.cos(decl) * Math.cos(ha));
+  let cosAz = (Math.sin(decl) - Math.sin(alt) * Math.sin(latR)) / (Math.cos(alt) * Math.cos(latR));
+  cosAz = Math.min(1, Math.max(-1, cosAz));
+  let az = Math.acos(cosAz) * R2D; // 0=north, east side
+  if (haDeg > 0) az = 360 - az;    // afternoon → west side
+  return az;
+}
+function compass(az) {
+  const dirs = ["北", "北北東", "北東", "東北東", "東", "東南東", "南東", "南南東",
+    "南", "南南西", "南西", "西南西", "西", "西北西", "北西", "北北西"];
+  return dirs[Math.round(az / 22.5) % 16];
+}
+
+/* ---------- UI ---------- */
+function fmt(d) {
+  if (!d) return "—";
+  return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+}
+function selDate() {
+  const v = $("dateInput").value;
+  const [y, m, dd] = v.split("-").map(Number);
+  return new Date(y, m - 1, dd);
+}
+
+function calc() {
+  const lat = state.lat, lon = state.lon;
+  const date = selDate();
+  const T = (alt, ev) => toLocal(date, crossingUTC(date, lat, lon, alt, ev));
+
+  const rise = T(-0.833, false), set = T(-0.833, true);
+  const civilDawn = T(-6, false), civilDusk = T(-6, true);
+  const blueAmStart = T(-6, false), blueAmEnd = T(-4, false);
+  const goldAmStart = T(-4, false), goldAmEnd = T(6, false);
+  const goldPmStart = T(6, true), goldPmEnd = T(-4, true);
+  const bluePmStart = T(-4, true), bluePmEnd = T(-6, true);
+  const noon = toLocal(date, solarNoonUTC(date, lon));
+
+  const riseAz = azimuthAt(date, lat, lon, crossingUTC(date, lat, lon, -0.833, false));
+  const setAz = azimuthAt(date, lat, lon, crossingUTC(date, lat, lon, -0.833, true));
+
+  $("riseTime").textContent = fmt(rise);
+  $("riseAz").textContent = riseAz != null ? "方角: " + compass(riseAz) + "(" + Math.round(riseAz) + "°)" : "";
+  $("setTime").textContent = fmt(set);
+  $("setAz").textContent = setAz != null ? "方角: " + compass(setAz) + "(" + Math.round(setAz) + "°)" : "";
+
+  const dayLen = rise && set ? set - rise : null;
+  const dl = dayLen ? Math.floor(dayLen / 3600000) + "時間" + Math.round(dayLen % 3600000 / 60000) + "分" : "—";
+
+  const rows = [
+    ["#3d5aa8", "朝のブルーアワー", fmt(blueAmStart) + " 〜 " + fmt(blueAmEnd)],
+    ["#e8963c", "朝のゴールデンアワー", fmt(goldAmStart) + " 〜 " + fmt(goldAmEnd)],
+    ["#e8963c", "夕方のゴールデンアワー", fmt(goldPmStart) + " 〜 " + fmt(goldPmEnd)],
+    ["#3d5aa8", "夕方のブルーアワー", fmt(bluePmStart) + " 〜 " + fmt(bluePmEnd)],
+    ["#9a9aa4", "市民薄明(明るくなる)", fmt(civilDawn) + " 〜 " + fmt(rise)],
+    ["#9a9aa4", "市民薄明(暗くなる)", fmt(set) + " 〜 " + fmt(civilDusk)],
+    ["#7ec3e8", "南中(太陽が最も高い)", fmt(noon)],
+    ["#7ec3e8", "昼の長さ", dl],
+  ];
+  const tbl = $("detail");
+  tbl.textContent = "";
+  for (const [color, name, val] of rows) {
+    const tr = document.createElement("tr");
+    const td1 = document.createElement("td");
+    const dot = document.createElement("span");
+    dot.className = "dot"; dot.style.background = color;
+    td1.append(dot, name);
+    const td2 = document.createElement("td");
+    td2.textContent = val;
+    tr.append(td1, td2);
+    tbl.appendChild(tr);
+  }
+
+  drawTimeline({ blueAmStart, goldAmStart, rise, goldAmEnd, goldPmStart, set, bluePmStart, bluePmEnd, date });
+}
+
+function drawTimeline(t) {
+  const cv = $("tlCanvas");
+  const W = cv.clientWidth * (window.devicePixelRatio || 1);
+  const H = cv.clientHeight * (window.devicePixelRatio || 1);
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext("2d");
+  const x = (d) => d ? (d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600) / 24 * W : null;
+
+  ctx.fillStyle = "#1b2340"; // night
+  ctx.fillRect(0, 0, W, H);
+  const seg = (a, b, color) => {
+    const xa = x(a), xb = x(b);
+    if (xa == null || xb == null || xb <= xa) return;
+    ctx.fillStyle = color;
+    ctx.fillRect(xa, 0, xb - xa, H);
+  };
+  seg(t.blueAmStart, t.goldAmStart, "#3d5aa8");
+  seg(t.goldAmStart, t.goldAmEnd, "#e8963c");
+  seg(t.goldAmEnd, t.goldPmStart, "#7ec3e8");   // full day
+  seg(t.goldPmStart, t.bluePmStart, "#e8963c");
+  seg(t.bluePmStart, t.bluePmEnd, "#3d5aa8");
+
+  // hour ticks
+  ctx.fillStyle = "rgba(255,255,255,.25)";
+  for (let h = 1; h < 24; h++) ctx.fillRect(h / 24 * W, 0, 1, h % 6 === 0 ? H : H * 0.25);
+
+  // now marker (only if the selected date is today)
+  const now = new Date();
+  if (now.toDateString() === t.date.toDateString()) {
+    const nx = x(now);
+    ctx.fillStyle = "#f7f2e8";
+    ctx.fillRect(nx - 1, 0, 3, H);
+    ctx.beginPath();
+    ctx.moveTo(nx - 6, 0); ctx.lineTo(nx + 6, 0); ctx.lineTo(nx, 8);
+    ctx.fill();
+  }
+}
+
+/* ---------- controls ---------- */
+function renderChips() {
+  const box = $("cityChips");
+  box.textContent = "";
+  for (const c of CITIES) {
+    const b = document.createElement("button");
+    b.textContent = c.gps ? "📍 " + c.n : c.n;
+    if (c.gps) b.id = "gpsBtn";
+    if (!c.gps && c.n === state.city) b.classList.add("sel");
+    b.addEventListener("click", () => {
+      if (c.gps) {
+        b.textContent = "📍 取得中…";
+        navigator.geolocation.getCurrentPosition(
+          (p) => {
+            state.lat = +p.coords.latitude.toFixed(4);
+            state.lon = +p.coords.longitude.toFixed(4);
+            state.city = "現在地";
+            save(); syncCoords(); renderChips(); calc();
+            b.textContent = "📍 現在地";
+          },
+          () => { b.textContent = "📍 取得失敗"; setTimeout(renderChips, 1500); },
+          { enableHighAccuracy: true, timeout: 10000 }
+        );
+      } else {
+        state.lat = c.la; state.lon = c.lo; state.city = c.n;
+        save(); syncCoords(); renderChips(); calc();
+      }
+    });
+    box.appendChild(b);
+  }
+}
+function syncCoords() {
+  $("lat").value = state.lat;
+  $("lon").value = state.lon;
+  $("placeName").textContent = state.city || "";
+}
+function bindCoords() {
+  for (const id of ["lat", "lon"]) {
+    $(id).addEventListener("change", () => {
+      const v = parseFloat($(id).value);
+      if (!Number.isFinite(v)) { syncCoords(); return; }
+      state[id === "lat" ? "lat" : "lon"] = v;
+      state.city = "カスタム";
+      save(); renderChips(); syncCoords(); calc();
+    });
+  }
+}
+function setDate(d) {
+  $("dateInput").value = d.getFullYear() + "-" +
+    String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  calc();
+}
+function bindDate() {
+  $("dateInput").addEventListener("change", calc);
+  $("prevDay").addEventListener("click", () => { const d = selDate(); d.setDate(d.getDate() - 1); setDate(d); });
+  $("nextDay").addEventListener("click", () => { const d = selDate(); d.setDate(d.getDate() + 1); setDate(d); });
+  $("todayBtn").addEventListener("click", () => setDate(new Date()));
+}
+
+$("tzNote").textContent = Intl.DateTimeFormat().resolvedOptions().timeZone;
+window.addEventListener("resize", calc);
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+
+renderChips();
+syncCoords();
+bindCoords();
+bindDate();
+setDate(new Date());
+setInterval(calc, 60000); // keep the "now" marker moving
+</script>
+</body>
+</html>
