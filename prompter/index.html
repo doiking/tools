@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b0b0e">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<title>テレプロンプター — 8hammer</title>
+<style>
+  :root {
+    --bg: #0e0e11;
+    --panel: #1c1c22;
+    --panel2: #16161b;
+    --line: #33333c;
+    --fg: #f2f2ee;
+    --dim: #9a9aa4;
+    --accent: #f7c114;
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    touch-action: manipulation;
+    overscroll-behavior: none;
+  }
+  button { font-family: inherit; }
+
+  /* ================= edit view ================= */
+  #editView {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    padding: calc(10px + var(--sat)) calc(12px + var(--sar)) calc(10px + var(--sab)) calc(12px + var(--sal));
+    gap: 10px;
+  }
+  #topbar { display: flex; align-items: center; gap: 12px; flex: none; }
+  #topbar img { height: 24px; border-radius: 4px; }
+  #topbar h1 { font-size: 17px; font-weight: 700; margin: 0; flex: 1; }
+  #topbar .hint { font-size: 12px; color: var(--dim); }
+
+  #editMain { flex: 1; display: flex; gap: 10px; min-height: 0; }
+
+  #listPane {
+    width: 230px;
+    flex: none;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #listPane header {
+    padding: 10px 12px 8px;
+    font-size: 12px;
+    letter-spacing: .1em;
+    color: var(--dim);
+    border-bottom: 1px solid var(--line);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  #newBtn {
+    background: var(--accent); color: #17130a;
+    border: none; border-radius: 8px;
+    font-size: 13px; font-weight: 700;
+    padding: 6px 10px;
+  }
+  #scriptList { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .sitem {
+    padding: 10px 12px;
+    border-bottom: 1px solid #232329;
+    cursor: pointer;
+  }
+  .sitem.sel { background: #26262e; box-shadow: inset 3px 0 0 var(--accent); }
+  .sitem .t { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sitem .d { font-size: 11px; color: var(--dim); margin-top: 2px; }
+
+  #editorPane {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  #titleRow { display: flex; gap: 8px; flex: none; }
+  #titleInput {
+    flex: 1; min-width: 0;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    color: var(--fg);
+    font-size: 16px; font-weight: 600;
+    padding: 10px 12px;
+  }
+  #titleInput:focus { outline: none; border-color: var(--accent); }
+  #titleRow button {
+    background: var(--panel);
+    color: var(--fg);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-size: 14px;
+    padding: 0 14px;
+  }
+  #titleRow #delBtn { color: #ff8484; }
+  #textInput {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    color: var(--fg);
+    font-size: 17px;
+    line-height: 1.8;
+    padding: 14px 16px;
+    resize: none;
+    -webkit-user-select: text; user-select: text;
+  }
+  #textInput:focus { outline: none; border-color: var(--accent); }
+
+  #bottomRow { display: flex; gap: 10px; align-items: center; flex: none; }
+  #stats { flex: 1; font-size: 13px; color: var(--dim); }
+  #playBtn {
+    background: var(--accent); color: #17130a;
+    border: none; border-radius: 12px;
+    font-size: 19px; font-weight: 800;
+    letter-spacing: .05em;
+    padding: 14px 42px;
+  }
+  #playBtn:active { filter: brightness(.88); }
+
+  @media (max-width: 700px), (orientation: portrait) {
+    #editMain { flex-direction: column; }
+    #listPane { width: auto; max-height: 30dvh; }
+  }
+
+  /* ================= play view ================= */
+  #playView { position: fixed; inset: 0; background: #000; display: none; }
+  #playView.on { display: block; }
+
+  #scroller {
+    position: absolute; inset: 0;
+    overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  #scroller::-webkit-scrollbar { display: none; }
+  #scroller.mirrorH { transform: scaleX(-1); }
+  #scroller.mirrorV { transform: scaleY(-1); }
+  #scroller.mirrorH.mirrorV { transform: scale(-1, -1); }
+  #scriptText {
+    padding: 42dvh 7vw 65dvh;
+    font-weight: 700;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #fff;
+  }
+
+  #guide {
+    position: fixed;
+    left: calc(4px + var(--sal));
+    top: 40dvh;
+    color: var(--accent);
+    font-size: 26px;
+    transform: translateY(-50%);
+    pointer-events: none;
+    text-shadow: 0 0 8px rgba(0,0,0,.8);
+  }
+  #progress {
+    position: fixed;
+    right: 0; top: 0;
+    width: 4px; height: 0%;
+    background: var(--accent);
+    opacity: .6;
+    pointer-events: none;
+  }
+
+  #hud {
+    position: fixed;
+    left: 0; right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px calc(10px + var(--sar)) calc(10px + var(--sab)) calc(10px + var(--sal));
+    background: linear-gradient(transparent, rgba(0,0,0,.75));
+    transition: opacity .25s;
+  }
+  #hud.hidden { opacity: 0; pointer-events: none; }
+  #hud button {
+    min-width: 54px; height: 50px;
+    background: rgba(40,40,48,.92);
+    color: var(--fg);
+    border: 1px solid #3a3a44;
+    border-radius: 11px;
+    font-size: 17px; font-weight: 700;
+  }
+  #hud button:active { background: #3a3a46; }
+  #hud button.on { background: var(--accent); color: #17130a; border-color: var(--accent); }
+  #hud #ppBtn { min-width: 84px; background: var(--accent); color: #17130a; border-color: var(--accent); font-size: 21px; }
+  #hud .grp { display: flex; gap: 4px; align-items: center; }
+  #hud .lbl { font-size: 11px; color: var(--dim); width: 34px; text-align: center; }
+
+  #timeLeft {
+    position: fixed;
+    top: calc(8px + var(--sat));
+    right: calc(12px + var(--sar));
+    font-size: 15px;
+    color: var(--dim);
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 6px rgba(0,0,0,.9);
+    pointer-events: none;
+  }
+
+  #countdown {
+    position: fixed; inset: 0;
+    display: none;
+    align-items: center; justify-content: center;
+    background: #000;
+    color: var(--accent);
+    font-size: min(50vw, 50vh);
+    font-weight: 800;
+    z-index: 10;
+  }
+  #countdown.on { display: flex; }
+</style>
+</head>
+<body>
+
+<div id="editView">
+  <div id="topbar">
+    <img src="data:image/png;base64,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" alt="8hammer">
+    <h1>テレプロンプター</h1>
+    <span class="hint">再生中: タップ=再生/停止 ・ 上下スワイプ=手動送り</span>
+  </div>
+  <div id="editMain">
+    <div id="listPane">
+      <header><span>原稿リスト</span><button id="newBtn">+ 新規</button></header>
+      <div id="scriptList"></div>
+    </div>
+    <div id="editorPane">
+      <div id="titleRow">
+        <input id="titleInput" placeholder="タイトル(例:社長挨拶 60秒)" autocomplete="off">
+        <button id="dupBtn">複製</button>
+        <button id="delBtn">削除</button>
+      </div>
+      <textarea id="textInput" placeholder="ここに原稿を入力(またはペースト)してください。&#10;&#10;空行も段落間の「間」としてそのまま反映されます。"></textarea>
+      <div id="bottomRow">
+        <span id="stats"></span>
+        <button id="playBtn">▶ 再生</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="playView">
+  <div id="scroller"><div id="scriptText"></div></div>
+  <div id="guide">▶</div>
+  <div id="progress"></div>
+  <div id="timeLeft"></div>
+  <div id="hud">
+    <button id="exitBtn" title="編集に戻る">✕</button>
+    <button id="restartBtn" title="最初から">↺</button>
+    <div class="grp">
+      <span class="lbl">速さ</span>
+      <button id="spdDown">−</button>
+      <button id="spdUp">＋</button>
+    </div>
+    <button id="ppBtn">▶</button>
+    <div class="grp">
+      <span class="lbl">文字</span>
+      <button id="fontDown">A−</button>
+      <button id="fontUp">A＋</button>
+    </div>
+    <button id="mirHBtn" title="左右反転(ミラー)">⇄</button>
+    <button id="mirVBtn" title="上下反転">⇅</button>
+    <button id="fsBtn2" title="全画面">⛶</button>
+  </div>
+  <div id="countdown"></div>
+</div>
+
+<script>
+"use strict";
+const LS_KEY = "prompter.v1";
+const $ = (id) => document.getElementById(id);
+
+/* ---------- state ---------- */
+const SAMPLE_TEXT =
+`これはテレプロンプターのサンプル原稿です。
+
+「▶ 再生」を押すと、3秒のカウントダウンのあと原稿が自動でスクロールします。
+
+画面をタップすると再生/一時停止。
+下のボタンで速さと文字の大きさを調整できます。
+「⇄」はプロンプターミラー用の左右反転です。
+
+Bluetoothキーボードやプレゼン用リモコンにも対応:
+スペース/PgDnで再生・停止、←→で速さ、↑↓で手動送りができます。
+
+原稿はこの画面を閉じても自動保存されます。
+それでは、本番よろしくお願いします!`;
+
+let state = {
+  scripts: [],          // {id, title, text, updated}
+  currentId: null,
+  fontSize: 54,         // px
+  speed: 60,            // px/sec
+  mirrorH: false,
+  mirrorV: false,
+};
+
+function load() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) state = Object.assign(state, JSON.parse(raw));
+  } catch (e) {}
+  if (!state.scripts.length) {
+    state.scripts = [{ id: newId(), title: "サンプル原稿(使い方)", text: SAMPLE_TEXT, updated: Date.now() }];
+    state.currentId = state.scripts[0].id;
+  }
+  if (!state.scripts.find(s => s.id === state.currentId)) state.currentId = state.scripts[0].id;
+}
+function save() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {}
+}
+function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function cur() { return state.scripts.find(s => s.id === state.currentId); }
+
+/* ---------- edit view ---------- */
+function fmtDate(ts) {
+  const d = new Date(ts);
+  return (d.getMonth() + 1) + "/" + d.getDate() + " " +
+    String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+}
+function renderList() {
+  const list = $("scriptList");
+  list.textContent = "";
+  const sorted = [...state.scripts].sort((a, b) => b.updated - a.updated);
+  for (const s of sorted) {
+    const it = document.createElement("div");
+    it.className = "sitem" + (s.id === state.currentId ? " sel" : "");
+    const t = document.createElement("div");
+    t.className = "t";
+    t.textContent = s.title || "(無題)";
+    const d = document.createElement("div");
+    d.className = "d";
+    d.textContent = fmtDate(s.updated) + " ・ " + s.text.length + "文字";
+    it.append(t, d);
+    it.addEventListener("click", () => {
+      state.currentId = s.id;
+      save(); renderEditor(); renderList();
+    });
+    list.appendChild(it);
+  }
+}
+function renderEditor() {
+  const s = cur();
+  $("titleInput").value = s.title;
+  $("textInput").value = s.text;
+  renderStats();
+}
+function renderStats() {
+  const s = cur();
+  const chars = s.text.replace(/\s/g, "").length;
+  // 300字/分 ≒ ナレーション標準ペースでの目安尺
+  const sec = Math.round(chars / 300 * 60);
+  $("stats").textContent = chars + "文字 ・ 読み上げ目安 約" +
+    (sec >= 60 ? Math.floor(sec / 60) + "分" + (sec % 60 ? sec % 60 + "秒" : "") : sec + "秒") +
+    "(300字/分)";
+}
+
+function bindEdit() {
+  $("titleInput").addEventListener("input", () => {
+    const s = cur(); s.title = $("titleInput").value; s.updated = Date.now();
+    save(); renderList();
+  });
+  $("textInput").addEventListener("input", () => {
+    const s = cur(); s.text = $("textInput").value; s.updated = Date.now();
+    save(); renderList(); renderStats();
+  });
+  $("newBtn").addEventListener("click", () => {
+    const s = { id: newId(), title: "", text: "", updated: Date.now() };
+    state.scripts.push(s); state.currentId = s.id;
+    save(); renderList(); renderEditor();
+    $("titleInput").focus();
+  });
+  $("dupBtn").addEventListener("click", () => {
+    const s = cur();
+    const c = { id: newId(), title: (s.title || "(無題)") + " のコピー", text: s.text, updated: Date.now() };
+    state.scripts.push(c); state.currentId = c.id;
+    save(); renderList(); renderEditor();
+  });
+  $("delBtn").addEventListener("click", () => {
+    const s = cur();
+    if (!confirm("「" + (s.title || "(無題)") + "」を削除しますか?")) return;
+    state.scripts = state.scripts.filter(x => x.id !== s.id);
+    if (!state.scripts.length) state.scripts = [{ id: newId(), title: "", text: "", updated: Date.now() }];
+    state.currentId = state.scripts[0].id;
+    save(); renderList(); renderEditor();
+  });
+  $("playBtn").addEventListener("click", () => startPlay(true));
+}
+
+/* ---------- play view ---------- */
+let playing = false;
+let rafId = null;
+let lastT = 0;
+let scrollAcc = 0;
+let hudTimer = null;
+
+function applyPlayStyles() {
+  $("scriptText").style.fontSize = state.fontSize + "px";
+  $("scriptText").style.lineHeight = 1.65;
+  $("scroller").classList.toggle("mirrorH", state.mirrorH);
+  $("scroller").classList.toggle("mirrorV", state.mirrorV);
+  $("mirHBtn").classList.toggle("on", state.mirrorH);
+  $("mirVBtn").classList.toggle("on", state.mirrorV);
+}
+
+function startPlay(withCountdown) {
+  $("scriptText").textContent = cur().text || "(原稿が空です)";
+  applyPlayStyles();
+  $("playView").classList.add("on");
+  $("scroller").scrollTop = 0;
+  updateProgress();
+  keepAwake();
+  if (withCountdown && cur().text) {
+    let n = 3;
+    const cd = $("countdown");
+    cd.textContent = n; cd.classList.add("on");
+    const tick = setInterval(() => {
+      n--;
+      if (n > 0) { cd.textContent = n; }
+      else {
+        clearInterval(tick);
+        cd.classList.remove("on");
+        setPlaying(true);
+      }
+    }, 700);
+  }
+  showHud();
+}
+
+function exitPlay() {
+  setPlaying(false);
+  $("playView").classList.remove("on");
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+}
+
+function setPlaying(on) {
+  playing = on;
+  $("ppBtn").textContent = on ? "❚❚" : "▶";
+  if (on) {
+    lastT = performance.now();
+    scrollAcc = 0;
+    if (!rafId) rafId = requestAnimationFrame(step);
+    hideHudSoon();
+  } else {
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    showHud();
+  }
+}
+
+function step(t) {
+  rafId = null;
+  if (!playing) return;
+  const dt = Math.min(0.1, (t - lastT) / 1000);
+  lastT = t;
+  const sc = $("scroller");
+  scrollAcc += state.speed * dt;
+  const px = Math.floor(scrollAcc);
+  if (px >= 1) {
+    scrollAcc -= px;
+    sc.scrollTop += px;
+  }
+  updateProgress();
+  if (sc.scrollTop >= sc.scrollHeight - sc.clientHeight - 1) {
+    setPlaying(false); // reached the end
+  } else {
+    rafId = requestAnimationFrame(step);
+  }
+}
+
+function updateProgress() {
+  const sc = $("scroller");
+  const max = sc.scrollHeight - sc.clientHeight;
+  const p = max > 0 ? sc.scrollTop / max : 0;
+  $("progress").style.height = (p * 100) + "%";
+  const remainPx = Math.max(0, max - sc.scrollTop);
+  const s = Math.round(remainPx / state.speed);
+  $("timeLeft").textContent = "残り " + Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0") +
+    " ・ " + state.speed + "px/s ・ " + state.fontSize + "px";
+}
+
+function showHud() {
+  $("hud").classList.remove("hidden");
+  hideHudSoon();
+}
+function hideHudSoon() {
+  clearTimeout(hudTimer);
+  if (playing) hudTimer = setTimeout(() => $("hud").classList.add("hidden"), 3000);
+}
+
+function nudgeSpeed(d) {
+  state.speed = Math.min(400, Math.max(10, state.speed + d));
+  save(); updateProgress(); showHud();
+}
+function nudgeFont(d) {
+  state.fontSize = Math.min(140, Math.max(24, state.fontSize + d));
+  save(); applyPlayStyles(); updateProgress(); showHud();
+}
+
+function bindPlay() {
+  $("exitBtn").addEventListener("click", exitPlay);
+  $("restartBtn").addEventListener("click", () => {
+    $("scroller").scrollTop = 0; updateProgress(); showHud();
+  });
+  $("ppBtn").addEventListener("click", () => setPlaying(!playing));
+  $("spdUp").addEventListener("click", () => nudgeSpeed(+10));
+  $("spdDown").addEventListener("click", () => nudgeSpeed(-10));
+  $("fontUp").addEventListener("click", () => nudgeFont(+4));
+  $("fontDown").addEventListener("click", () => nudgeFont(-4));
+  $("mirHBtn").addEventListener("click", () => { state.mirrorH = !state.mirrorH; save(); applyPlayStyles(); showHud(); });
+  $("mirVBtn").addEventListener("click", () => { state.mirrorV = !state.mirrorV; save(); applyPlayStyles(); showHud(); });
+  $("fsBtn2").addEventListener("click", () => {
+    const el = document.documentElement;
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    } else if (el.requestFullscreen || el.webkitRequestFullscreen) {
+      (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+    }
+  });
+
+  // tap on the text = play/pause (but not taps on HUD buttons)
+  $("scroller").addEventListener("click", () => {
+    if ($("countdown").classList.contains("on")) return;
+    setPlaying(!playing);
+  });
+  ["pointermove", "touchstart"].forEach(ev =>
+    $("playView").addEventListener(ev, showHud, { passive: true }));
+
+  // keyboard / presenter remote
+  document.addEventListener("keydown", (e) => {
+    if (!$("playView").classList.contains("on")) return;
+    const sc = $("scroller");
+    switch (e.key) {
+      case " ": case "Enter": case "PageDown": case "b": case "B":
+        e.preventDefault(); setPlaying(!playing); break;
+      case "PageUp":
+        e.preventDefault(); sc.scrollTop -= sc.clientHeight * 0.5; updateProgress(); break;
+      case "ArrowUp":
+        e.preventDefault(); sc.scrollTop -= 80; updateProgress(); break;
+      case "ArrowDown":
+        e.preventDefault(); sc.scrollTop += 80; updateProgress(); break;
+      case "ArrowLeft":
+        e.preventDefault(); nudgeSpeed(-10); break;
+      case "ArrowRight":
+        e.preventDefault(); nudgeSpeed(+10); break;
+      case "+": case "=": nudgeFont(+4); break;
+      case "-": nudgeFont(-4); break;
+      case "m": case "M": state.mirrorH = !state.mirrorH; save(); applyPlayStyles(); break;
+      case "Home": sc.scrollTop = 0; updateProgress(); break;
+      case "Escape": exitPlay(); break;
+    }
+  });
+
+  // manual scroll while paused updates progress
+  $("scroller").addEventListener("scroll", () => { if (!playing) updateProgress(); }, { passive: true });
+}
+
+/* ---------- misc ---------- */
+let wakeLock = null;
+async function keepAwake() {
+  try { if ("wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {}
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && $("playView").classList.contains("on")) keepAwake();
+});
+
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+
+/* ---------- boot ---------- */
+load();
+bindEdit();
+bindPlay();
+renderList();
+renderEditor();
+</script>
+</body>
+</html>
