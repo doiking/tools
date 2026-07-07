@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0e0e11">
+<link rel="icon" href="scene-memo/icons/icon-192.png">
+<title>8hammer Tools</title>
+<style>
+  :root {
+    --bg: #0e0e11;
+    --panel: #1c1c22;
+    --line: #33333c;
+    --fg: #f2f2ee;
+    --dim: #9a9aa4;
+    --accent: #f7c114;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    padding: calc(24px + env(safe-area-inset-top)) 18px calc(30px + env(safe-area-inset-bottom));
+  }
+  #wrap { max-width: 860px; margin: 0 auto; }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
+  header img { height: 34px; border-radius: 5px; }
+  header h1 { font-size: 24px; font-weight: 800; margin: 0; }
+  p.lead { color: var(--dim); font-size: 14px; margin: 4px 0 24px; line-height: 1.7; }
+
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+  a.card {
+    display: flex; align-items: center; gap: 14px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 16px;
+    text-decoration: none;
+    color: var(--fg);
+    transition: transform .12s, border-color .12s;
+  }
+  a.card:hover, a.card:active { transform: translateY(-2px); border-color: var(--accent); }
+  a.card img { width: 58px; height: 58px; border-radius: 13px; flex: none; }
+  .card .t { font-size: 16.5px; font-weight: 700; margin-bottom: 3px; }
+  .card .d { font-size: 12.5px; color: var(--dim); line-height: 1.55; }
+
+  footer { margin-top: 28px; font-size: 12px; color: var(--dim); line-height: 1.8; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <header>
+    <img src="data:image/png;base64,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" alt="8hammer">
+    <h1>Tools</h1>
+  </header>
+  <p class="lead">
+    撮影現場・制作業務用の社内ツール集。すべてオフライン動作対応(一度開けば電波のない現場でも使えます)。
+    各ツールを開いて「ホーム画面に追加」すると、フルスクリーンのアプリとして使えます。
+  </p>
+
+  <div id="grid">
+    <a class="card" href="scene-memo/">
+      <img src="scene-memo/icons/icon-192.png" alt="">
+      <div>
+        <div class="t">シーンメモ 🎬</div>
+        <div class="d">カチンコのようにシーン・カット・テイクを記録。OK/NG判定・メモ・CSV書き出し</div>
+      </div>
+    </a>
+    <a class="card" href="prompter/">
+      <img src="prompter/icons/icon-192.png" alt="">
+      <div>
+        <div class="t">テレプロンプター 📜</div>
+        <div class="d">原稿を自動スクロール表示。ミラー反転・リモコン対応・複数原稿の保存</div>
+      </div>
+    </a>
+    <a class="card" href="sun/">
+      <img src="sun/icons/icon-192.png" alt="">
+      <div>
+        <div class="t">日の出・マジックアワー 🌅</div>
+        <div class="d">ロケ地と日付から日の出・日の入・ゴールデンアワーと方角をオフライン計算</div>
+      </div>
+    </a>
+    <a class="card" href="lens/">
+      <img src="lens/icons/icon-192.png" alt="">
+      <div>
+        <div class="t">レンズ画角シミュレーター 🔍</div>
+        <div class="d">センサー×焦点距離から画角・写る範囲・被写界深度を計算。人物フレーミング図付き</div>
+      </div>
+    </a>
+  </div>
+
+  <footer>
+    データはすべて各端末のブラウザ内(localStorage)にのみ保存され、外部には送信されません。<br>
+    © 8hammer — 撮影後は各ツールのCSV書き出し等でのデータ保全をおすすめします。
+  </footer>
+</div>
+</body>
+</html>
