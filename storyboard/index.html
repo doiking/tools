@@ -187,6 +187,23 @@
     body { background: #fff; color: #000; padding: 0; }
     #topbar, #grid, #addCard, #toast { display: none !important; }
     #printView { display: block; }
+    #printView .pcover {
+      height: 250mm;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      break-after: page;
+      gap: 6mm;
+    }
+    #printView .pcover .plogoBig { height: 14mm; margin-bottom: 10mm; }
+    #printView .pcover .plabel {
+      font-size: 11pt; letter-spacing: .5em; color: #333;
+      border-top: 1px solid #000; border-bottom: 1px solid #000;
+      padding: 2mm 6mm;
+    }
+    #printView .pcover .ptitle { font-size: 26pt; font-weight: 800; margin: 4mm 0 0; }
+    #printView .pcover .pinfo { font-size: 11pt; color: #222; margin-top: 8mm; line-height: 1.9; }
+    #printView .pcover .pfoot { font-size: 9pt; color: #555; margin-top: 22mm; }
     #printView .phead {
       display: flex; align-items: center; justify-content: space-between;
       border-bottom: 2px solid #000;
@@ -239,7 +256,7 @@
 <script>
 "use strict";
 const LS_KEY = "storyboard.v1";
-const PRINT_LOGO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAYAAAABICAAAAADaYH0OAAAFO0lEQVR42u2c69mkKgyAbYAGbIAC0oAV0IANpAEboAEaoAEaoD3PeBlNuDhznl381t3k14yMyOSVkIRo14mIiIj8qMwiPyQCQAAIAAEgAARAW/ETGlgF0UXR+q0AwqgTl6s3QRR/FwCri24veFH9HQB8X408RtF9ewDjVeynRfmtAejr6HsQ7bcFQPSvBpy8Q8MtkhX1twRgTvXjuSgA9YZE/Q0BuFP/ocyl65zovx2A09okHudwAkDRfzMA5wSApCV21SYB0MIDzZbaQQDcAABqFmiesQTArSZLjQLgN4mqb7b5UjSM/2pattX/7uozwJWskwMB0AiArZsglpi2AqBNGDxUF+GhMBQB8Nvj4C7WJocXAO0A2Kq3j7WEdC8A2kTCnaHHQzUdDQKg0RRgBN6Lg5oFQFMAM817Qkz134c6AIcv4c6T97iKZ8e8t+sBT06Idvly9h6Wn2HW4vNrLL8YAcBMx2jjcvL2NUyI06MAUCN0ZKT1xXbYBsC9nST1zpUGYNs4kaWUcI5GnVnXYwsa+IpDWl7TMY7vUyiCaNIbxr6dhbBf41kAgmKlEJZsEY/VKUOVHdO4gWW3956Iu6Vcn+237SfTzWlDOzynlKPDVZGEjHZouIHRMgMQ+Z6kyu7tss3qgWPalm0NoJlq/RFPKEpNa47vhKIJBAUqiUX8Dgc1mUGO/wPzMAAs9/+5HgJOEzMxOwXvrQPPDcGmUOXJLFnO3rlbnvkgLZ2ajmsomrzaFqbN8ARq6BQG3K/0LAB8Xn/YCQZyRxo6qgCA9Db1FO9mLHbUA8kEIvuLA9WnJ9Zp/9FIOl4vPpGuVqvn25QyNU9CmrwexV4A8NTsVBZ2TxdYQ+/zQMhwALRFFxoUOe5Jv9DK9NwGIBaKU3pbBfAhL2EyAFPhBMwB0JYxp2mzM4AMyj0YgFXFmqDefwBQyUtgBsAX1OyrABxtIVPOMOOYAgjPBWBS3+SiLIsBqITFtgpAVwFArYUAWD9Ofo3tEFIA81MBRBr8YFInmsXClwBekesAuydaBAC/BKDqqz0awBGJ7f/Y9sWI6jOAwN3ZOwDsztWjARz6Px1/jkDF7wDYRDmtAGwmaJPbMoTtABz6Z04cK5iGrwCsC2c/+fhyxceWAPwn1+xZAPpy3o25RfYbAD0JWH1LAPhXAYBaVQTN0cEXAAKdRf8DAJQ82ksvaPibANh6Ast15f3iCgCmszwOsB8BdF8AMDUtPDYOUNWyIJadoDGmzgD4NDHA0jQ84O1/CYCt2SCoLQ5/OICpq+48svJcTIdSAaBoMg5LALrvAYwF5W43zLHlZXV4NoD+8jkk/SWA6cTVW++d4cv6NQBVTUXAnCfa9jtG47IHuex/mUcDCNePAJi82SXISKUi5FFSoBQXTMh8Xn9+PvpVjHwkHYdi1nYZBtlHm54FwF4DwPx/pSXTw7mCELept/g+zBkDOzucn5EWCQceyyFbpZIgMVBD2vBZkjYA8HrgQ74l62GXYVuXA+Lr885ne7gPxkUpS0Zo9XyG/YT1sfuJn72+GcEsnbt3v6vhZ19ew1zyS+cI3QjbhQC3biIco/JPBQDXa8D8z0trAN2lFySPCrcHgF9ZIAHQahEubMJbeUasOYB4UQYx1dLRAqBFKm690UnCwYG8quAOAD6JnAbEpb52UPKqiJuSceOnN5Uq0X9TAIWCLF6dJW8tawwgLWrmt7+8JaI9gKSunxakiPpvAfDyRqe8LlGPYnxuA7D6QxZHeL8z1EroezsAEQEgAEQEwJ8OQEREROSH5D97DPqMxRdoIAAAAABJRU5ErkJggg=="; // 白黒ロゴ(印刷用)
+const PRINT_LOGO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAYAAAABICAAAAADaYH0OAAAFAElEQVR42u2c7bWsKgyGpz0boAEaoAEasIE0YANUYAMpgAZsgAa443ciwsy5Z+M67JX314yO6OSRkAT09RKJRCKRSCQSiUSiH5fuweEiANOJPR6VGnzkmpwSszwle7X+KtRimkdczxRzGsQ69TXEgrzYp7Z8LGoUCz1m/zBCrw047pGs2Kim3Gl+OAcFpNGQGKmizGl/dc8lRiNmqqfT21wizvEEAGKmBzoAXvZ0MbtLVCMCTYbaUQA8IMx5oNcL7gCYxWUFSc9+SuGwcpoe32XDkPu16P8p5nuAufNOBgVAJQA274JYYdoKgDpp8JgdhMcbZmK5H8+DY5frHFoA1JPNRvuQK0hPAqBOJhwd3a6y5WgUAJW6ACOwDw7hJQCeSsXeXqi72n9SeQAG3uLBk9awSLNtWttlgyYHdHb+crau5p9Bsken55h/MSCi64+r7eaD16+qB+ibdUJHRdoXpsNWAGYPksJeK1XIpnE263R7Pa9z4ay6HlPQyEccsufdHbthP4Qi6Nz1hrF7sKC2c7QFQAW2FMKSKeIh22Wosbtr3sCq21tLJNwKZkrm27aD6eS0ow2eXcrQyw0dSRnt2OgERsfnJENyb9/7rAk5pnXY9oiemVYf+USg1Lzn+E4onkAIGC65iN7ggCc9yPB/4JobB8Y/WQ+Bp4vpmZ/CfepAc0ewGjRo0kvmozfullc+yJ4Y+uMcgRav1oFpdTyKOroACrYzNSbWrz/MBCO5Ix21tEIEeptqind1FhvqkVQCgSV4I7WnJt5p+9FAGl5O3pOmFq+nG13K5NL1KLYAQFO3kxnYNR1gHb3PFSHDAdA9/mZHINs1aRfbdD35geAYkF/lPCADwCUA+psDIAVA9wwpTZscgeSiWp67tuF2TdCkPwDI1CUgAaBvzKyzAAzdQ7qcY87xCqDhpazuGpsUlmUxAJm02GYB+CwAzO0hAJaPvV5yO8ArgPbdz5z8wGWdaJILFwG8M9cRt0j0FgD+FYBsrNY0gCMT2/6xnW4zqs8AFA9nnwCwBVdNAzjsfwb+HEHovgNgL8apBWB1Qat+QYXwsD8L4tiCafwKwDJwTr3u3qH4UBOA/hSatVmL84WwyH4DYCIJq64JAH4VAMytiqA1OvwCgKK96A8A4F1EW4yCxt8EwOYLWCbezxdnADCbpXmA/QggfgHA5arNzeYBIbssiFUnaI7pEwD6WhhgZRqe8E5/BcDmfBDmBod/XH3Mzjyy5bn0L8cCgECLcXAHIH4PYLgx7nrDHFNe1qu2AUzF55D8lwD6E9dktTaOD+tlACFbisBXWmjb7hgP8xzkPP/lmgagyo8AuHS3uSAjKxUxzZIUpThjAhbz6vPz0W5g5DvSsLqt2s6XQebRGpsOtmUAkP6v65Lp8RxBSNg0Wdg3c8bIjlbnZ6CLhBXP5YCNUpckUVFH2tyzJFC+8DGdktW4aVzHZQXw/rzxWR/uw2E2ylwRWiKfcTtgeey+50cvb0Zwc+Nmb3dx/OzL+zLn+tJ5hWbA9UQIazMdHlelWwWA5THgJaoMIBajIHlUuD4A+MoDiWoNwjeT8FaeEauurrAMos+Vo0U1SnHLjU4KDgblVQVPSF8ypxFgXl87BnlVxEMa4gcFsX9dubL9vby17MFQNL395S0RD0hhxvyTmP+paLRP1yX6QZzPs/GQhQH3d4ZaSX1FIpFIJBKJRKJ/Q/8BhLAdogPv7KMAAAAASUVORK5CYII="; // 白黒ロゴ(印刷用)
 const INBOX_KEY = "storyboard.inbox.v1";
 const $ = (id) => document.getElementById(id);
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -519,6 +536,32 @@ $("jsonFileIn").addEventListener("change", async () => {
 $("printBtn").addEventListener("click", () => {
   const pv = $("printView");
   pv.textContent = "";
+
+  // 表紙
+  const totalSec = board().cuts.reduce((a, c) => a + (parseFloat(c.sec) || 0), 0);
+  const durText = Math.floor(totalSec / 60) + "分" + Math.round(totalSec % 60) + "秒";
+  const cover = document.createElement("div");
+  cover.className = "pcover";
+  const clogo = document.createElement("img");
+  clogo.className = "plogoBig";
+  clogo.alt = "8hammer";
+  clogo.src = PRINT_LOGO;
+  const clabel = document.createElement("div");
+  clabel.className = "plabel";
+  clabel.textContent = "STORYBOARD / 絵コンテ";
+  const ctitle = document.createElement("div");
+  ctitle.className = "ptitle";
+  ctitle.textContent = board().title || "(無題)";
+  const cinfo = document.createElement("div");
+  cinfo.className = "pinfo";
+  cinfo.textContent = "全 " + board().cuts.length + " カット ／ 合計尺 " + durText;
+  const now = new Date();
+  const cfoot = document.createElement("div");
+  cfoot.className = "pfoot";
+  cfoot.textContent = now.getFullYear() + "年" + (now.getMonth() + 1) + "月" + now.getDate() + "日 ／ 8hammer";
+  cover.append(clogo, clabel, ctitle, cinfo, cfoot);
+  pv.appendChild(cover);
+
   const phead = document.createElement("div");
   phead.className = "phead";
   const h1 = document.createElement("h1");
