@@ -66,9 +66,28 @@
 
   #main { flex: 1; display: flex; gap: 8px; min-height: 0; }
 
-  /* plan view */
+  /* 3D main view */
+  #camCol {
+    flex: 2.3; min-width: 0; min-height: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #camTools {
+    position: absolute; top: 8px; left: 8px;
+    display: flex; gap: 6px;
+  }
+  #camTools button {
+    background: rgba(36,36,44,.92); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 9px;
+    font-size: 13.5px; font-weight: 600; padding: 8px 11px;
+  }
+
+  /* plan minimap */
+  #sideCol {
+    flex: 1; min-width: 250px; max-width: 380px;
+    display: flex; flex-direction: column; gap: 8px; min-height: 0;
+  }
   #planWrap {
-    flex: 1.1; min-width: 0;
+    flex: 1.15; min-height: 150px;
     background: #141419;
     border: 1px solid var(--line);
     border-radius: 14px;
@@ -76,15 +95,6 @@
     overflow: hidden;
   }
   #plan { width: 100%; height: 100%; display: block; touch-action: none; }
-  #planTools {
-    position: absolute; top: 8px; left: 8px;
-    display: flex; gap: 6px;
-  }
-  #planTools button {
-    background: rgba(36,36,44,.95); color: var(--fg);
-    border: 1px solid var(--line); border-radius: 9px;
-    font-size: 13.5px; font-weight: 600; padding: 8px 11px;
-  }
   #sceneMenu[hidden] { display: none; }
   #sceneMenu {
     position: absolute; top: 52px; left: 8px;
@@ -120,23 +130,24 @@
   }
 
   /* camera view + props */
-  #side { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
   #camWrap {
     background: #000;
     border: 1px solid var(--line);
     border-radius: 14px;
     overflow: hidden;
     position: relative;
+    width: 100%;
     aspect-ratio: 16 / 9;
-    flex: none;
+    max-height: 100%;
   }
-  #cam3d { width: 100%; height: 100%; display: block; }
+  #cam3d { width: 100%; height: 100%; display: block; touch-action: none; }
   #thirds { position: absolute; inset: 0; pointer-events: none; }
   #camInfo {
-    position: absolute; top: 6px; left: 8px;
+    position: absolute; top: 8px; right: 10px;
     font-size: 11.5px; color: #ddd;
     text-shadow: 0 0 5px #000;
     pointer-events: none;
+    text-align: right;
   }
   #fpsBtn {
     position: absolute; right: 8px; bottom: 8px;
@@ -190,9 +201,10 @@
 
   @media (max-width: 780px), (orientation: portrait) {
     #main { flex-direction: column; }
-    #planWrap { flex: 1; min-height: 200px; }
-    #side { flex: none; }
-    #props { max-height: 200px; }
+    #camCol { flex: none; }
+    #sideCol { flex: 1; max-width: none; min-width: 0; }
+    #planWrap { flex: 1; min-height: 170px; }
+    #props { max-height: 220px; }
   }
   /* phones: compact toolbar (2 rows max) */
   @media (max-width: 600px) {
@@ -201,7 +213,8 @@
     #topbar select { max-width: 108px; font-size: 13px; padding: 8px 4px; }
     #cutName { width: 0; flex: 1; min-width: 80px; font-size: 13px; }
     #topbar button { font-size: 12.5px; padding: 8px 8px; }
-    #planTools button { font-size: 12.5px; padding: 7px 9px; }
+    #camTools button { font-size: 12.5px; padding: 7px 9px; }
+    #camInfo { top: 50px; }
     #planHint { display: none; }
     #props { max-height: 240px; }
   }
@@ -222,23 +235,7 @@
   </div>
 
   <div id="main">
-    <div id="planWrap">
-      <canvas id="plan"></canvas>
-      <div id="planTools">
-        <button id="addPerson">＋人物</button>
-        <button id="addCam">＋カメラ</button>
-        <button id="addBox">＋箱</button>
-        <button id="addScene">＋シーン</button>
-      </div>
-      <div id="sceneMenu" hidden></div>
-      <div id="planZoom">
-        <button id="zoomIn">＋</button>
-        <button id="zoomOut">−</button>
-      </div>
-      <div id="planHint">ドラッグ=移動 / 空白ドラッグ=画面移動<br>俯瞰ビュー(1マス=1m)</div>
-    </div>
-
-    <div id="side">
+    <div id="camCol">
       <div id="camWrap">
         <canvas id="cam3d"></canvas>
         <svg id="thirds" viewBox="0 0 160 90" preserveAspectRatio="none">
@@ -248,8 +245,26 @@
           <line x1="0" y1="60" x2="160" y2="60" stroke="rgba(255,255,255,.22)" stroke-width="0.4"/>
         </svg>
         <div id="camInfo"></div>
+        <div id="camTools">
+          <button id="addPerson">＋人物</button>
+          <button id="addCam">＋カメラ</button>
+          <button id="addBox">＋箱</button>
+          <button id="addScene">＋シーン</button>
+        </div>
+        <div id="sceneMenu" hidden></div>
         <button id="fpsBtn" title="一人称操作(WASD+マウス)">🎮</button>
         <div id="fpsHint" hidden>WASD: 移動 ・ マウス: 視点 ・ Space/Shift: 上下 ・ ホイール: ズーム ・ Esc: 終了</div>
+      </div>
+    </div>
+
+    <div id="sideCol">
+      <div id="planWrap">
+        <canvas id="plan"></canvas>
+        <div id="planZoom">
+          <button id="zoomIn">＋</button>
+          <button id="zoomOut">−</button>
+        </div>
+        <div id="planHint">俯瞰マップ(1マス=1m)</div>
       </div>
       <div id="props"><div id="noSel"></div></div>
     </div>
@@ -835,7 +850,7 @@ function renderProps() {
     title.textContent = "プロパティ";
     const p = document.createElement("div");
     p.id = "noSel";
-    p.textContent = "俯瞰ビューで人物・カメラ・箱をタップすると、ここで回転・高さ・レンズなどを調整できます。ドラッグで位置を移動。";
+    p.textContent = "3D画面か俯瞰マップで人物・箱をタップして選択、そのままドラッグで移動できます。カメラは俯瞰マップでタップ。選択するとここで回転・高さ・レンズなどを調整できます。";
     box.append(title, p);
     return;
   }
@@ -1189,19 +1204,110 @@ function fpsStep(t) {
   fpsRaf = requestAnimationFrame(fpsStep);
 }
 
+/* ================= direct manipulation in the 3D view ================= */
+const raycaster = new THREE.Raycaster();
+const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const selRing = new THREE.Mesh(
+  new THREE.RingGeometry(0.32, 0.38, 36),
+  new THREE.MeshBasicMaterial({ color: 0xf7c114, side: THREE.DoubleSide })
+);
+selRing.rotation.x = -Math.PI / 2;
+selRing.position.y = 0.015;
+selRing.visible = false;
+scene.add(selRing);
+
+function camNdc(e) {
+  const r = camCanvas.getBoundingClientRect();
+  return new THREE.Vector2(
+    ((e.clientX - r.left) / r.width) * 2 - 1,
+    -((e.clientY - r.top) / r.height) * 2 + 1
+  );
+}
+function pick3d(e) {
+  raycaster.setFromCamera(camNdc(e), cam3);
+  for (const hit of raycaster.intersectObjects(scene.children, true)) {
+    let n = hit.object;
+    while (n) {
+      for (const [id, entry] of meshCache) if (entry.group === n) return { id, point: hit.point };
+      n = n.parent;
+    }
+  }
+  return null;
+}
+// 掴んだ点の高さの水平面上でドラッグする(地面平面だと地平線付近の
+// 交点が数十m先に飛び、カーソルと移動量が一致しないため)
+const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+function dragPoint(e) {
+  raycaster.setFromCamera(camNdc(e), cam3);
+  const p = new THREE.Vector3();
+  return raycaster.ray.intersectPlane(dragPlane, p) ? p : null;
+}
+
+let camDrag = null; // {id, offX, offZ}
+camCanvas.addEventListener("pointerdown", (e) => {
+  sceneMenu.hidden = true;
+  if (fpsActive()) return;
+  const hit = pick3d(e);
+  if (!hit) return;
+  selId = hit.id;
+  const o = objs().find(x => x.id === hit.id);
+  dragPlane.constant = -hit.point.y;
+  const g = dragPoint(e);
+  camDrag = (o && g) ? { id: hit.id, offX: o.x - g.x, offZ: o.z - g.z } : null;
+  camCanvas.setPointerCapture(e.pointerId);
+  renderAll();
+});
+camCanvas.addEventListener("pointermove", (e) => {
+  if (!camDrag || fpsActive()) return;
+  const o = objs().find(x => x.id === camDrag.id);
+  const g = dragPoint(e);
+  if (o && g) {
+    o.x = Math.round((g.x + camDrag.offX) * 10) / 10;
+    o.z = Math.round((g.z + camDrag.offZ) * 10) / 10;
+    renderAll(false);
+  }
+});
+for (const ev of ["pointerup", "pointercancel"]) {
+  camCanvas.addEventListener(ev, () => { if (camDrag) { camDrag = null; save(); } });
+}
+
+/* keep the 3D stage a true 16:9 inside its column */
+function fitCamWrap() {
+  const col = $("camCol");
+  const cw = $("camWrap");
+  cw.style.width = "";
+  cw.style.height = "";
+  const r = col.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  let w = r.width, h = w * 9 / 16;
+  if (h > r.height) { h = r.height; w = h * 16 / 9; }
+  cw.style.width = w + "px";
+  cw.style.height = h + "px";
+}
+
 /* ================= glue ================= */
 let lastProps = null;
 function renderAll(withProps = true) {
+  const s = sel();
+  if (s && s.type !== "camera") {
+    selRing.visible = true;
+    selRing.position.set(s.x, 0.015, s.z);
+    const rr = s.type === "box" ? Math.max(s.w, s.d) * 0.62 : 0.35;
+    selRing.scale.setScalar(rr / 0.35);
+  } else {
+    selRing.visible = false;
+  }
   drawPlan();
   renderCam();
   if (withProps || lastProps !== selId) { renderProps(); lastProps = selId; }
 }
 
-window.addEventListener("resize", () => { resizePlan(); renderCam(); });
+window.addEventListener("resize", () => { fitCamWrap(); resizePlan(); renderCam(); });
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }
 
+fitCamWrap();
 resizePlan();
 renderCutSel();
 renderAll();
