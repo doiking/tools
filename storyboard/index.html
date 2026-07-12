@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0e0e11">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<title>絵コンテ — 8hammer</title>
+<style>
+  :root {
+    --bg: #0e0e11;
+    --panel: #1c1c22;
+    --line: #33333c;
+    --fg: #f2f2ee;
+    --dim: #9a9aa4;
+    --accent: #f7c114;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    touch-action: manipulation;
+    padding: calc(10px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
+  }
+  button { font-family: inherit; }
+
+  #topbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  #topbar img { height: 24px; border-radius: 4px; }
+  #topbar h1 { font-size: 17px; font-weight: 700; margin: 0 6px 0 0; }
+  #topbar select, #boardTitle {
+    background: var(--panel); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 9px;
+    font-size: 14px; padding: 9px 10px;
+  }
+  #boardTitle { width: 200px; font-weight: 600; -webkit-user-select: text; user-select: text; }
+  #boardTitle:focus, select:focus { outline: none; border-color: var(--accent); }
+  #topbar button {
+    background: var(--panel); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 9px;
+    font-size: 13.5px; padding: 9px 12px;
+  }
+  #topbar button.acc { background: var(--accent); color: #17130a; border-color: var(--accent); font-weight: 700; }
+  #topbar button.danger { color: #ff8484; }
+  .spacer { flex: 1; }
+  #total { font-size: 13px; color: var(--dim); white-space: nowrap; }
+
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 12px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .chead {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px;
+    border-bottom: 1px solid #26262c;
+  }
+  .cno { font-size: 15px; font-weight: 800; color: var(--accent); min-width: 34px; }
+  .chead input.sec {
+    width: 58px;
+    background: #16161b; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 7px;
+    font-size: 14px; font-weight: 700; padding: 6px 6px; text-align: right;
+    -webkit-user-select: text; user-select: text;
+  }
+  .chead .unit { font-size: 12px; color: var(--dim); }
+  .chead .sp { flex: 1; }
+  .chead button {
+    background: #24242c; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 7px;
+    font-size: 13px; padding: 6px 9px;
+  }
+  .chead button.del { color: #ff8484; }
+  .frame {
+    aspect-ratio: 16 / 9;
+    background: #101014;
+    position: relative;
+    cursor: pointer;
+  }
+  .frame img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .frame .empty {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: var(--dim); font-size: 12.5px; gap: 4px; text-align: center;
+  }
+  .frame .empty .big { font-size: 26px; }
+  .cbody { padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 6px; }
+  .cbody textarea {
+    background: #16161b; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 8px;
+    font-size: 13.5px; line-height: 1.6;
+    padding: 7px 9px;
+    resize: none;
+    font-family: inherit;
+    -webkit-user-select: text; user-select: text;
+  }
+  .cbody textarea:focus { outline: none; border-color: var(--accent); }
+  .cbody .lbl { font-size: 10.5px; color: var(--dim); letter-spacing: .08em; margin-bottom: -3px; }
+
+  #addCard {
+    border: 2px dashed var(--line);
+    border-radius: 14px;
+    min-height: 220px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--dim); font-size: 15px;
+    background: transparent;
+    cursor: pointer;
+  }
+  #addCard:active { border-color: var(--accent); color: var(--accent); }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 24px;
+    transform: translateX(-50%);
+    background: var(--accent); color: #17130a;
+    font-size: 14px; font-weight: 700;
+    padding: 10px 18px; border-radius: 12px;
+    z-index: 20;
+    display: none;
+  }
+
+  /* ---------- print (PDF) ---------- */
+  #printView { display: none; }
+  @media print {
+    body { background: #fff; color: #000; padding: 0; }
+    #topbar, #grid, #addCard, #toast { display: none !important; }
+    #printView { display: block; }
+    #printView h1 {
+      font-size: 16pt; margin: 0 0 4mm;
+      border-bottom: 2px solid #000; padding-bottom: 2mm;
+    }
+    #printView .meta { font-size: 9pt; color: #444; margin-bottom: 4mm; }
+    #printView table { width: 100%; border-collapse: collapse; }
+    #printView th, #printView td {
+      border: 1px solid #888;
+      padding: 2mm;
+      font-size: 9.5pt;
+      vertical-align: top;
+      text-align: left;
+    }
+    #printView th { background: #eee; font-size: 8.5pt; }
+    #printView td.no { width: 8mm; font-weight: 700; text-align: center; }
+    #printView td.pic { width: 62mm; }
+    #printView td.pic img { width: 100%; display: block; }
+    #printView td.sec { width: 12mm; text-align: center; }
+    #printView tr { break-inside: avoid; }
+    #printView .white { white-space: pre-wrap; }
+  }
+</style>
+</head>
+<body>
+<div id="topbar">
+  <img src="data:image/png;base64,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" alt="8hammer">
+  <h1>絵コンテ</h1>
+  <select id="boardSel"></select>
+  <input id="boardTitle" placeholder="作品名・シーン名" autocomplete="off">
+  <button id="newBoard">＋新規</button>
+  <button id="dupBoard">複製</button>
+  <button id="delBoard" class="danger">削除</button>
+  <span class="spacer"></span>
+  <span id="total"></span>
+  <button id="jsonOut" title="バックアップ">JSON保存</button>
+  <button id="jsonIn" title="復元">読込</button>
+  <button id="printBtn" class="acc">🖨 印刷 / PDF</button>
+</div>
+
+<div id="grid"></div>
+
+<div id="printView"></div>
+<div id="toast"></div>
+<input type="file" id="fileIn" accept="image/*" hidden>
+<input type="file" id="jsonFileIn" accept="application/json" hidden>
+
+<script>
+"use strict";
+const LS_KEY = "storyboard.v1";
+const INBOX_KEY = "storyboard.inbox.v1";
+const $ = (id) => document.getElementById(id);
+const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+/* ---------- state ---------- */
+function newCut(partial) {
+  return Object.assign({ id: newId(), img: null, sec: 3, action: "", dialog: "" }, partial || {});
+}
+function newBoard(title) {
+  return { id: newId(), title: title || "", cuts: [newCut()] };
+}
+let state = { boards: [], currentId: null };
+try { const raw = localStorage.getItem(LS_KEY); if (raw) state = JSON.parse(raw); } catch (e) {}
+if (!state.boards || !state.boards.length) {
+  const b = newBoard("");
+  state = { boards: [b], currentId: b.id };
+}
+if (!state.boards.find(b => b.id === state.currentId)) state.currentId = state.boards[0].id;
+
+function save() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+  catch (e) { alert("保存容量が足りません。古いボードの削除、またはJSON保存でのバックアップ後に整理してください。"); }
+}
+function board() { return state.boards.find(b => b.id === state.currentId); }
+
+/* ---------- inbox from shot designer ---------- */
+(function receiveInbox() {
+  let inbox = [];
+  try { inbox = JSON.parse(localStorage.getItem(INBOX_KEY)) || []; } catch (e) {}
+  if (!inbox.length) return;
+  for (const item of inbox) {
+    board().cuts.push(newCut({ img: item.img || null, action: item.action || "", dialog: item.info ? "(" + item.info + ")" : "" }));
+  }
+  localStorage.removeItem(INBOX_KEY);
+  save();
+  setTimeout(() => toast("ショットデザイナーから " + inbox.length + " カット受信しました"), 300);
+})();
+
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.style.display = "block";
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { t.style.display = "none"; }, 3200);
+}
+
+/* ---------- board selector ---------- */
+function renderTop() {
+  const s = $("boardSel");
+  s.textContent = "";
+  for (const b of state.boards) {
+    const op = document.createElement("option");
+    op.value = b.id;
+    op.textContent = b.title || "(無題)";
+    if (b.id === state.currentId) op.selected = true;
+    s.appendChild(op);
+  }
+  $("boardTitle").value = board().title;
+  const total = board().cuts.reduce((a, c) => a + (parseFloat(c.sec) || 0), 0);
+  const m = Math.floor(total / 60), sec = Math.round(total % 60);
+  $("total").textContent = board().cuts.length + "カット ・ 合計 " + (m ? m + "分" : "") + sec + "秒";
+}
+$("boardSel").addEventListener("change", () => { state.currentId = $("boardSel").value; save(); renderAll(); });
+$("boardTitle").addEventListener("input", () => { board().title = $("boardTitle").value; save(); renderTop(); });
+$("newBoard").addEventListener("click", () => {
+  const b = newBoard("");
+  state.boards.push(b); state.currentId = b.id;
+  save(); renderAll();
+  $("boardTitle").focus();
+});
+$("dupBoard").addEventListener("click", () => {
+  const c = JSON.parse(JSON.stringify(board()));
+  c.id = newId();
+  c.title = (c.title || "(無題)") + " のコピー";
+  for (const cut of c.cuts) cut.id = newId();
+  state.boards.push(c); state.currentId = c.id;
+  save(); renderAll();
+});
+$("delBoard").addEventListener("click", () => {
+  if (!confirm("「" + (board().title || "(無題)") + "」を削除しますか?")) return;
+  state.boards = state.boards.filter(b => b.id !== state.currentId);
+  if (!state.boards.length) state.boards = [newBoard("")];
+  state.currentId = state.boards[0].id;
+  save(); renderAll();
+});
+
+/* ---------- cuts grid ---------- */
+let uploadTarget = null;
+
+function renderGrid() {
+  const g = $("grid");
+  g.textContent = "";
+  board().cuts.forEach((c, i) => g.appendChild(cutCard(c, i)));
+  const add = document.createElement("button");
+  add.id = "addCard";
+  add.textContent = "＋ カットを追加";
+  add.addEventListener("click", () => {
+    board().cuts.push(newCut());
+    save(); renderAll();
+  });
+  g.appendChild(add);
+}
+
+function cutCard(c, i) {
+  const card = document.createElement("div");
+  card.className = "card";
+
+  const head = document.createElement("div");
+  head.className = "chead";
+  const no = document.createElement("span");
+  no.className = "cno";
+  no.textContent = "C" + (i + 1);
+  const sec = document.createElement("input");
+  sec.className = "sec";
+  sec.inputMode = "decimal";
+  sec.value = c.sec;
+  sec.addEventListener("change", () => {
+    const v = parseFloat(sec.value);
+    c.sec = Number.isFinite(v) && v >= 0 ? v : 3;
+    save(); renderTop();
+    sec.value = c.sec;
+  });
+  const unit = document.createElement("span");
+  unit.className = "unit";
+  unit.textContent = "秒";
+  const sp = document.createElement("span"); sp.className = "sp";
+  const mkBtn = (label, title, fn) => {
+    const b = document.createElement("button");
+    b.textContent = label; b.title = title;
+    b.addEventListener("click", fn);
+    return b;
+  };
+  const left = mkBtn("◀", "前へ移動", () => {
+    if (i === 0) return;
+    const arr = board().cuts;
+    [arr[i - 1], arr[i]] = [arr[i], arr[i - 1]];
+    save(); renderAll();
+  });
+  const right = mkBtn("▶", "後ろへ移動", () => {
+    const arr = board().cuts;
+    if (i >= arr.length - 1) return;
+    [arr[i + 1], arr[i]] = [arr[i], arr[i + 1]];
+    save(); renderAll();
+  });
+  const dup = mkBtn("複製", "カットを複製", () => {
+    const copy = JSON.parse(JSON.stringify(c));
+    copy.id = newId();
+    board().cuts.splice(i + 1, 0, copy);
+    save(); renderAll();
+  });
+  const del = mkBtn("✕", "カットを削除", () => {
+    if (!confirm("C" + (i + 1) + " を削除しますか?")) return;
+    board().cuts.splice(i, 1);
+    save(); renderAll();
+  });
+  del.className = "del";
+  head.append(no, sec, unit, sp, left, right, dup, del);
+
+  const frame = document.createElement("div");
+  frame.className = "frame";
+  frame.title = "タップで画像を選択(撮影した写真・書き出したPNGなど)";
+  if (c.img) {
+    const img = document.createElement("img");
+    img.src = c.img;
+    frame.appendChild(img);
+  } else {
+    const e = document.createElement("div");
+    e.className = "empty";
+    const b1 = document.createElement("span"); b1.className = "big"; b1.textContent = "🖼";
+    const b2 = document.createElement("span"); b2.textContent = "タップで画像を追加\n(ショットデザイナーからも送れます)";
+    b2.style.whiteSpace = "pre-line";
+    e.append(b1, b2);
+    frame.appendChild(e);
+  }
+  frame.addEventListener("click", () => {
+    uploadTarget = c.id;
+    $("fileIn").value = "";
+    $("fileIn").click();
+  });
+
+  const body = document.createElement("div");
+  body.className = "cbody";
+  const mkArea = (label, key, rows, placeholder) => {
+    const l = document.createElement("div");
+    l.className = "lbl";
+    l.textContent = label;
+    const t = document.createElement("textarea");
+    t.rows = rows;
+    t.placeholder = placeholder;
+    t.value = c[key];
+    t.addEventListener("input", () => { c[key] = t.value; save(); });
+    body.append(l, t);
+  };
+  mkArea("アクション / カメラ", "action", 2, "例: Aが振り返る。カメラはドリーで寄り");
+  mkArea("セリフ / 音", "dialog", 2, "例: A「おはよう」/ SE: ドアの音");
+
+  card.append(head, frame, body);
+  return card;
+}
+
+/* image upload: downscale to fit 960x540 */
+$("fileIn").addEventListener("change", () => {
+  const f = $("fileIn").files[0];
+  if (!f || !uploadTarget) return;
+  const img = new Image();
+  img.onload = () => {
+    const W = 960, H = 540;
+    const cv = document.createElement("canvas");
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext("2d");
+    ctx.fillStyle = "#101014";
+    ctx.fillRect(0, 0, W, H);
+    const sc = Math.min(W / img.width, H / img.height);
+    const w = img.width * sc, h = img.height * sc;
+    ctx.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+    const c = board().cuts.find(x => x.id === uploadTarget);
+    if (c) { c.img = cv.toDataURL("image/jpeg", 0.82); save(); renderAll(); }
+    URL.revokeObjectURL(img.src);
+  };
+  img.src = URL.createObjectURL(f);
+});
+
+/* ---------- JSON backup ---------- */
+$("jsonOut").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(board())], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "storyboard_" + (board().title || "untitled").replace(/[\\/:*?"<>|\s]+/g, "_") + ".json";
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+});
+$("jsonIn").addEventListener("click", () => { $("jsonFileIn").value = ""; $("jsonFileIn").click(); });
+$("jsonFileIn").addEventListener("change", async () => {
+  const f = $("jsonFileIn").files[0];
+  if (!f) return;
+  try {
+    const b = JSON.parse(await f.text());
+    if (!b.cuts) throw new Error("bad");
+    b.id = newId();
+    for (const c of b.cuts) c.id = newId();
+    state.boards.push(b);
+    state.currentId = b.id;
+    save(); renderAll();
+    toast("「" + (b.title || "(無題)") + "」を読み込みました");
+  } catch (e) {
+    alert("読み込めませんでした(このツールのJSON保存ファイルを指定してください)");
+  }
+});
+
+/* ---------- print / PDF ---------- */
+$("printBtn").addEventListener("click", () => {
+  const pv = $("printView");
+  pv.textContent = "";
+  const h1 = document.createElement("h1");
+  h1.textContent = "絵コンテ — " + (board().title || "(無題)");
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  const total = board().cuts.reduce((a, c) => a + (parseFloat(c.sec) || 0), 0);
+  meta.textContent = board().cuts.length + "カット / 合計 " +
+    Math.floor(total / 60) + "分" + Math.round(total % 60) + "秒 / 8hammer";
+  const tbl = document.createElement("table");
+  const thr = document.createElement("tr");
+  for (const t of ["No", "画", "アクション / カメラ", "セリフ / 音", "秒"]) {
+    const th = document.createElement("th");
+    th.textContent = t;
+    thr.appendChild(th);
+  }
+  tbl.appendChild(thr);
+  board().cuts.forEach((c, i) => {
+    const tr = document.createElement("tr");
+    const td1 = document.createElement("td"); td1.className = "no"; td1.textContent = i + 1;
+    const td2 = document.createElement("td"); td2.className = "pic";
+    if (c.img) { const im = document.createElement("img"); im.src = c.img; td2.appendChild(im); }
+    const td3 = document.createElement("td"); td3.className = "white"; td3.textContent = c.action;
+    const td4 = document.createElement("td"); td4.className = "white"; td4.textContent = c.dialog;
+    const td5 = document.createElement("td"); td5.className = "sec"; td5.textContent = c.sec;
+    tr.append(td1, td2, td3, td4, td5);
+    tbl.appendChild(tr);
+  });
+  pv.append(h1, meta, tbl);
+  window.print();
+});
+
+/* ---------- boot ---------- */
+function renderAll() { renderTop(); renderGrid(); }
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+renderAll();
+</script>
+</body>
+</html>

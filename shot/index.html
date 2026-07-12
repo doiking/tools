@@ -216,6 +216,12 @@
     border: none; border-radius: 10px;
     font-weight: 700; font-size: 15px; padding: 13px 0;
   }
+  #sbSend {
+    background: #24242c; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 9px;
+    font-size: 13.5px; padding: 11px 0;
+  }
+  #sbLink { color: var(--dim); font-size: 12.5px; text-decoration: none; }
   #toolsLink { color: var(--dim); font-size: 12.5px; text-decoration: none; margin-top: auto; padding-top: 14px; }
 
   /* FPS mode */
@@ -291,6 +297,9 @@
     </div>
     <div class="small">書き出し</div>
     <button id="drawerExport">📷 PNG書き出し(16:9)</button>
+    <div class="small">絵コンテ連携</div>
+    <button id="sbSend">🎬 このカットを絵コンテへ送る</button>
+    <a id="sbLink" href="../storyboard/">絵コンテツールを開く →</a>
     <a id="toolsLink" href="../">← 8hammer Tools 一覧へ</a>
   </div>
 </div>
@@ -1176,6 +1185,37 @@ function doExportPng() {
   renderCam(); // 画面表示を復元
 }
 $("exportPng").addEventListener("click", doExportPng);
+
+function sendToStoryboard() {
+  const c = activeCam();
+  if (!c) { alert("カメラがありません(＋カメラで追加)"); return; }
+  syncScene();
+  const sn = sensor169(c.sensor);
+  cam3.fov = 2 * Math.atan(sn.h / 2 / c.fl) * 180 / Math.PI;
+  cam3.aspect = 16 / 9;
+  cam3.updateProjectionMatrix();
+  applyCamPose(c);
+  renderer.setPixelRatio(1);
+  renderer.setSize(960, 540, false);
+  renderer.render(scene, cam3);
+  const img = camCanvas.toDataURL("image/jpeg", 0.82);
+  renderCam();
+  const KEY = "storyboard.inbox.v1";
+  let inbox = [];
+  try { inbox = JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) {}
+  inbox.push({
+    img,
+    action: cut().name || "",
+    info: (c.sensor || "フルサイズ") + " " + c.fl + "mm",
+  });
+  try {
+    localStorage.setItem(KEY, JSON.stringify(inbox));
+    alert("絵コンテへ送りました(" + inbox.length + "件待機中)。絵コンテツールを開くと追加されます。");
+  } catch (e) {
+    alert("保存容量が足りず送れませんでした。絵コンテツール側で古いボードを整理してください。");
+  }
+}
+$("sbSend").addEventListener("click", sendToStoryboard);
 $("drawerExport").addEventListener("click", () => { $("drawer").hidden = true; doExportPng(); });
 
 /* menu drawer + minimap toggle */

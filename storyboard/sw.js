@@ -1,10 +1,9 @@
-/* Shot designer service worker: cache-first so the app works offline on set. */
-const CACHE = "shot-v9";
+/* Prompter service worker: cache-first so the app works offline on set. */
+const CACHE = "storyboard-v1";
 const ASSETS = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
-  "./vendor/three.module.min.js",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/apple-touch-icon.png"
