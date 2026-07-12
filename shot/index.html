@@ -18,92 +18,83 @@
     --fg: #f2f2ee;
     --dim: #9a9aa4;
     --accent: #f7c114;
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+    --sar: env(safe-area-inset-right, 0px);
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; }
   body {
     margin: 0;
-    background: var(--bg);
+    background: #000;
     color: var(--fg);
     font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
     touch-action: manipulation;
+    overflow: hidden;
     overscroll-behavior: none;
   }
   button { font-family: inherit; }
 
-  #app {
-    display: flex;
-    flex-direction: column;
-    height: 100dvh;
-    padding: calc(8px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
-    gap: 8px;
+  /* fullscreen 3D stage */
+  #cam3d { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #frameGuide {
+    position: fixed;
+    border: 1.5px solid rgba(247, 193, 20, .5);
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 2;
   }
-  #topbar { display: flex; align-items: center; gap: 10px; flex: none; flex-wrap: wrap; }
-  #topbar img { height: 22px; border-radius: 4px; }
-  #topbar h1 { font-size: 16px; font-weight: 700; margin: 0; }
-  #cutName {
-    background: var(--panel); color: var(--fg);
-    border: 1px solid var(--line); border-radius: 9px;
-    font-size: 14px; font-weight: 600; padding: 8px 10px;
-    width: 170px;
-    -webkit-user-select: text; user-select: text;
-  }
-  #cutName:focus { outline: none; border-color: var(--accent); }
-  #topbar select {
-    background: var(--panel); color: var(--fg);
-    border: 1px solid var(--line); border-radius: 9px;
-    font-size: 14px; padding: 8px 8px;
-    max-width: 170px;
-  }
-  #topbar button {
-    background: var(--panel); color: var(--fg);
-    border: 1px solid var(--line); border-radius: 9px;
-    font-size: 13.5px; padding: 8px 11px;
-  }
-  #topbar button.acc { background: var(--accent); color: #17130a; border-color: var(--accent); font-weight: 700; }
-  #topbar button.danger { color: #ff8484; }
-  .spacer { flex: 1; }
-
-  #main { flex: 1; display: flex; gap: 8px; min-height: 0; }
-
-  /* 3D main view */
-  #camCol {
-    flex: 2.3; min-width: 0; min-height: 0;
-    display: flex; align-items: center; justify-content: center;
-  }
-  #camTools {
-    position: absolute; top: 8px; left: 8px;
-    display: flex; gap: 6px;
-  }
-  #camTools button {
-    background: rgba(36,36,44,.92); color: var(--fg);
-    border: 1px solid var(--line); border-radius: 9px;
-    font-size: 13.5px; font-weight: 600; padding: 8px 11px;
+  #frameGuide svg { width: 100%; height: 100%; display: block; }
+  #camInfo {
+    position: fixed;
+    top: calc(10px + var(--sat));
+    right: calc(12px + var(--sar));
+    font-size: 11.5px; color: #ddd;
+    text-shadow: 0 0 5px #000;
+    pointer-events: none;
+    text-align: right;
+    z-index: 4;
   }
 
-  /* plan minimap */
-  #sideCol {
-    flex: 1; min-width: 250px; max-width: 380px;
-    display: flex; flex-direction: column; gap: 8px; min-height: 0;
+  /* HUD buttons */
+  .hudBtn {
+    background: rgba(30, 30, 38, .92); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 10px;
+    font-size: 13.5px; font-weight: 600; padding: 9px 12px;
   }
-  #planWrap {
-    flex: 1.15; min-height: 150px;
-    background: #141419;
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    position: relative;
-    overflow: hidden;
+  .hudBtn:active { background: #33333e; }
+  #topLeft {
+    position: fixed;
+    top: calc(8px + var(--sat));
+    left: calc(8px + var(--sal));
+    display: flex; gap: 6px; flex-wrap: wrap;
+    max-width: 75vw;
+    z-index: 5;
   }
-  #plan { width: 100%; height: 100%; display: block; touch-action: none; }
+  #menuBtn { font-size: 16px; min-width: 44px; }
+  #bottomRight {
+    position: fixed;
+    right: calc(10px + var(--sar));
+    bottom: calc(10px + var(--sab));
+    display: flex; gap: 8px;
+    z-index: 5;
+  }
+  #bottomRight button { font-size: 18px; width: 48px; height: 44px; padding: 0; }
+  #exportPng { background: var(--accent); border-color: var(--accent); }
+
+  /* scene preset menu */
   #sceneMenu[hidden] { display: none; }
   #sceneMenu {
-    position: absolute; top: 52px; left: 8px;
+    position: fixed;
+    top: calc(56px + var(--sat));
+    left: calc(8px + var(--sal));
     display: flex; flex-direction: column; gap: 5px;
-    background: rgba(24,24,30,.97);
+    background: rgba(24, 24, 30, .97);
     border: 1px solid var(--line);
     border-radius: 12px;
     padding: 8px;
-    z-index: 5;
+    z-index: 8;
   }
   #sceneMenu button {
     background: #24242c; color: var(--fg);
@@ -112,73 +103,64 @@
     text-align: left;
   }
   #sceneMenu button:active { background: var(--accent); color: #17130a; }
+
+  /* floating minimap */
+  #planWrap[hidden] { display: none; }
+  #planWrap {
+    position: fixed;
+    left: calc(10px + var(--sal));
+    bottom: calc(10px + var(--sab));
+    width: min(380px, 44vw);
+    height: min(320px, 40dvh);
+    background: rgba(18, 18, 24, .93);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+    z-index: 4;
+  }
+  #plan { width: 100%; height: 100%; display: block; touch-action: none; }
   #planZoom {
     position: absolute; bottom: 8px; left: 8px;
     display: flex; gap: 6px;
   }
   #planZoom button {
-    width: 40px; height: 40px;
-    background: rgba(36,36,44,.95); color: var(--fg);
+    width: 38px; height: 38px;
+    background: rgba(36, 36, 44, .95); color: var(--fg);
     border: 1px solid var(--line); border-radius: 9px;
-    font-size: 19px;
+    font-size: 18px;
   }
   #planHint {
     position: absolute; bottom: 10px; right: 10px;
-    font-size: 11px; color: var(--dim);
+    font-size: 10.5px; color: var(--dim);
     pointer-events: none;
-    text-align: right;
   }
 
-  /* camera view + props */
-  #camWrap {
-    background: #000;
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    overflow: hidden;
-    position: relative;
-    width: 100%;
-    aspect-ratio: 16 / 9;
-    max-height: 100%;
-  }
-  #cam3d { width: 100%; height: 100%; display: block; touch-action: none; }
-  #thirds { position: absolute; inset: 0; pointer-events: none; }
-  #camInfo {
-    position: absolute; top: 8px; right: 10px;
-    font-size: 11.5px; color: #ddd;
-    text-shadow: 0 0 5px #000;
-    pointer-events: none;
-    text-align: right;
-  }
-  #fpsBtn {
-    position: absolute; right: 8px; bottom: 8px;
-    width: 42px; height: 36px;
-    background: rgba(36,36,44,.9); color: var(--fg);
-    border: 1px solid var(--line); border-radius: 9px;
-    font-size: 17px;
-  }
-  #fpsHint {
-    position: absolute; bottom: 8px; left: 50%;
-    transform: translateX(-50%);
-    font-size: 11.5px; color: #eee;
-    background: rgba(0,0,0,.6);
-    padding: 4px 12px; border-radius: 8px;
-    pointer-events: none; white-space: nowrap;
-  }
-
+  /* floating property panel */
+  #props[hidden] { display: none; }
   #props {
-    flex: 1;
-    background: var(--panel);
+    position: fixed;
+    right: calc(10px + var(--sar));
+    top: calc(54px + var(--sat));
+    width: min(330px, calc(100vw - 20px));
+    max-height: min(72dvh, 600px);
+    background: rgba(26, 26, 32, .96);
     border: 1px solid var(--line);
     border-radius: 14px;
     padding: 10px 12px;
     overflow-y: auto;
-    min-height: 0;
+    z-index: 6;
+  }
+  .propsHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .propsHead .ptitle { margin-bottom: 0; }
+  #propsClose {
+    background: transparent; border: none;
+    color: var(--dim); font-size: 17px; padding: 2px 6px;
   }
   #props .ptitle { font-size: 12px; letter-spacing: .1em; color: var(--dim); margin-bottom: 8px; }
   .prow { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
   .prow label { font-size: 13px; color: var(--dim); width: 74px; flex: none; }
-  .prow input[type=range] { flex: 1; accent-color: var(--accent); height: 30px; }
-  .prow .pval { width: 64px; text-align: right; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .prow input[type=range] { flex: 1; accent-color: var(--accent); height: 30px; min-width: 0; }
+  .prow .pval { width: 58px; text-align: right; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
   .prow .btns { display: flex; gap: 6px; flex-wrap: wrap; }
   .prow .btns button, .prowBtns button {
     background: #24242c; color: var(--fg);
@@ -191,7 +173,6 @@
   .prowBtns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
   .prowBtns button.danger { color: #ff8484; }
   .prowBtns button.acc { background: var(--accent); color: #17130a; border-color: var(--accent); font-weight: 700; }
-  #noSel { color: var(--dim); font-size: 13.5px; line-height: 1.8; }
   #props details { margin-top: 4px; border-top: 1px solid #26262e; padding-top: 8px; }
   #props summary {
     font-size: 13px; color: var(--dim);
@@ -199,77 +180,122 @@
     -webkit-user-select: none; user-select: none;
   }
 
-  @media (max-width: 780px), (orientation: portrait) {
-    #main { flex-direction: column; }
-    #camCol { flex: none; }
-    #sideCol { flex: 1; max-width: none; min-width: 0; }
-    #planWrap { flex: 1; min-height: 170px; }
-    #props { max-height: 220px; }
+  /* menu drawer */
+  #drawer[hidden] { display: none; }
+  #drawerBack { position: fixed; inset: 0; background: rgba(0, 0, 0, .45); z-index: 9; }
+  #drawerPanel {
+    position: fixed; left: 0; top: 0; bottom: 0;
+    width: min(300px, 85vw);
+    background: #17171c;
+    border-right: 1px solid var(--line);
+    z-index: 10;
+    padding: calc(14px + var(--sat)) 14px calc(14px + var(--sab));
+    display: flex; flex-direction: column; gap: 10px;
+    overflow-y: auto;
   }
-  /* phones: compact toolbar (2 rows max) */
+  #drawerPanel img { height: 24px; border-radius: 4px; align-self: flex-start; margin-bottom: 4px; }
+  #drawerPanel .small { font-size: 11px; color: var(--dim); letter-spacing: .1em; margin-top: 6px; }
+  #cutSel, #cutName {
+    width: 100%;
+    background: var(--panel); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 9px;
+    font-size: 14px; padding: 10px 10px;
+    -webkit-user-select: text; user-select: text;
+  }
+  #cutName:focus, #cutSel:focus { outline: none; border-color: var(--accent); }
+  .drawerRow { display: flex; gap: 8px; }
+  .drawerRow button {
+    flex: 1;
+    background: #24242c; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 9px;
+    font-size: 13.5px; padding: 11px 0;
+  }
+  #delCut { color: #ff8484; }
+  #drawerExport {
+    background: var(--accent); color: #17130a;
+    border: none; border-radius: 10px;
+    font-weight: 700; font-size: 15px; padding: 13px 0;
+  }
+  #toolsLink { color: var(--dim); font-size: 12.5px; text-decoration: none; margin-top: auto; padding-top: 14px; }
+
+  /* FPS mode */
+  #fpsHint {
+    position: fixed;
+    bottom: calc(10px + var(--sab));
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11.5px; color: #eee;
+    background: rgba(0, 0, 0, .6);
+    padding: 4px 12px; border-radius: 8px;
+    pointer-events: none; white-space: nowrap;
+    z-index: 6;
+  }
+
   @media (max-width: 600px) {
-    #topbar { gap: 6px; }
-    #topbar h1 { display: none; }
-    #topbar select { max-width: 108px; font-size: 13px; padding: 8px 4px; }
-    #cutName { width: 0; flex: 1; min-width: 80px; font-size: 13px; }
-    #topbar button { font-size: 12.5px; padding: 8px 8px; }
-    #camTools button { font-size: 12.5px; padding: 7px 9px; }
-    #camInfo { top: 50px; }
-    #planHint { display: none; }
-    #props { max-height: 240px; }
+    .hudBtn { font-size: 12px; padding: 8px 9px; }
+    #bottomRight button { width: 44px; height: 42px; font-size: 16px; }
+    #planWrap { width: calc(100vw - 84px); height: 34dvh; }
+    #camInfo { top: calc(54px + var(--sat)); }
   }
 </style>
 </head>
 <body>
-<div id="app">
-  <div id="topbar">
-    <img src="data:image/png;base64,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" alt="8hammer">
-    <h1>ショットデザイナー</h1>
-    <select id="cutSel"></select>
-    <input id="cutName" placeholder="カット名">
-    <button id="newCut">＋新規</button>
-    <button id="dupCut">複製</button>
-    <button id="delCut" class="danger">削除</button>
-    <span class="spacer"></span>
-    <button id="exportPng" class="acc">📷 PNG書き出し</button>
+<canvas id="cam3d"></canvas>
+<div id="frameGuide">
+  <svg viewBox="0 0 160 90" preserveAspectRatio="none">
+    <line x1="53.3" y1="0" x2="53.3" y2="90" stroke="rgba(255,255,255,.20)" stroke-width="0.4"/>
+    <line x1="106.7" y1="0" x2="106.7" y2="90" stroke="rgba(255,255,255,.20)" stroke-width="0.4"/>
+    <line x1="0" y1="30" x2="160" y2="30" stroke="rgba(255,255,255,.20)" stroke-width="0.4"/>
+    <line x1="0" y1="60" x2="160" y2="60" stroke="rgba(255,255,255,.20)" stroke-width="0.4"/>
+  </svg>
+</div>
+<div id="camInfo"></div>
+
+<div id="topLeft">
+  <button class="hudBtn" id="menuBtn" title="メニュー">☰</button>
+  <button class="hudBtn" id="addPerson">＋人物</button>
+  <button class="hudBtn" id="addCam">＋カメラ</button>
+  <button class="hudBtn" id="addBox">＋箱</button>
+  <button class="hudBtn" id="addScene">＋シーン</button>
+</div>
+<div id="sceneMenu" hidden></div>
+
+<div id="bottomRight">
+  <button class="hudBtn" id="mapBtn" title="俯瞰マップ表示/非表示">🗺️</button>
+  <button class="hudBtn" id="fpsBtn" title="一人称操作(WASD+マウス)">🎮</button>
+  <button class="hudBtn" id="exportPng" title="PNG書き出し(16:9)">📷</button>
+</div>
+
+<div id="planWrap">
+  <canvas id="plan"></canvas>
+  <div id="planZoom">
+    <button id="zoomIn">＋</button>
+    <button id="zoomOut">−</button>
   </div>
+  <div id="planHint">俯瞰マップ(1マス=1m)</div>
+</div>
 
-  <div id="main">
-    <div id="camCol">
-      <div id="camWrap">
-        <canvas id="cam3d"></canvas>
-        <svg id="thirds" viewBox="0 0 160 90" preserveAspectRatio="none">
-          <line x1="53.3" y1="0" x2="53.3" y2="90" stroke="rgba(255,255,255,.22)" stroke-width="0.4"/>
-          <line x1="106.7" y1="0" x2="106.7" y2="90" stroke="rgba(255,255,255,.22)" stroke-width="0.4"/>
-          <line x1="0" y1="30" x2="160" y2="30" stroke="rgba(255,255,255,.22)" stroke-width="0.4"/>
-          <line x1="0" y1="60" x2="160" y2="60" stroke="rgba(255,255,255,.22)" stroke-width="0.4"/>
-        </svg>
-        <div id="camInfo"></div>
-        <div id="camTools">
-          <button id="addPerson">＋人物</button>
-          <button id="addCam">＋カメラ</button>
-          <button id="addBox">＋箱</button>
-          <button id="addScene">＋シーン</button>
-        </div>
-        <div id="sceneMenu" hidden></div>
-        <button id="fpsBtn" title="一人称操作(WASD+マウス)">🎮</button>
-        <div id="fpsHint" hidden>WASD: 移動 ・ マウス: 視点 ・ Space/Shift: 上下 ・ ホイール: ズーム ・ Esc: 終了</div>
-      </div>
-    </div>
+<div id="props" hidden></div>
 
-    <div id="sideCol">
-      <div id="planWrap">
-        <canvas id="plan"></canvas>
-        <div id="planZoom">
-          <button id="zoomIn">＋</button>
-          <button id="zoomOut">−</button>
-        </div>
-        <div id="planHint">俯瞰マップ(1マス=1m)</div>
-      </div>
-      <div id="props"><div id="noSel"></div></div>
+<div id="drawer" hidden>
+  <div id="drawerBack"></div>
+  <div id="drawerPanel">
+    <img src="data:image/png;base64,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" alt="8hammer">
+    <div class="small">カット</div>
+    <select id="cutSel"></select>
+    <input id="cutName" placeholder="カット名" autocomplete="off">
+    <div class="drawerRow">
+      <button id="newCut">＋新規</button>
+      <button id="dupCut">複製</button>
+      <button id="delCut">削除</button>
     </div>
+    <div class="small">書き出し</div>
+    <button id="drawerExport">📷 PNG書き出し(16:9)</button>
+    <a id="toolsLink" href="../">← 8hammer Tools 一覧へ</a>
   </div>
 </div>
+
+<div id="fpsHint" hidden>WASD: 移動 ・ マウス: 視点 ・ Space/Shift: 上下 ・ ホイール: ズーム ・ Esc: 終了</div>
 
 <script type="module">
 import * as THREE from "./vendor/three.module.min.js";
@@ -798,14 +824,7 @@ function syncScene() {
   }
 }
 
-function renderCam() {
-  const c = activeCam();
-  if (!c) { renderer.clear(); $("camInfo").textContent = "カメラがありません(＋カメラで追加)"; return; }
-  syncScene();
-  const sn = sensor169(c.sensor);
-  cam3.fov = 2 * Math.atan(sn.h / 2 / c.fl) * 180 / Math.PI;
-  cam3.aspect = 16 / 9;
-  cam3.updateProjectionMatrix();
+function applyCamPose(c) {
   const tilt = (c.tilt || 0) * Math.PI / 180;
   cam3.position.set(c.x, c.h, c.z);
   cam3.lookAt(
@@ -813,9 +832,29 @@ function renderCam() {
     c.h + Math.sin(tilt),
     c.z + Math.sin(c.rot) * Math.cos(tilt)
   );
-  const r = $("cam3d").getBoundingClientRect();
+}
+
+function renderCam() {
+  const c = activeCam();
+  if (!c) { renderer.clear(); $("camInfo").textContent = "カメラがありません(＋カメラで追加)"; return; }
+  syncScene();
+  const sn = sensor169(c.sensor);
+  // 画面いっぱいに描画しつつ、中央の16:9ガイド内がセンサーの画角と
+  // 一致するようにFOVを合わせる(ガイドの外は「見切れている」領域)
+  const W = window.innerWidth, H = Math.max(1, window.innerHeight);
+  const aspect = W / H;
+  const sensorFovV = 2 * Math.atan(sn.h / 2 / c.fl);
+  let fovV = sensorFovV;
+  if (aspect < 16 / 9) {
+    const tanH = Math.tan(sensorFovV / 2) * (16 / 9);
+    fovV = 2 * Math.atan(tanH / aspect);
+  }
+  cam3.fov = fovV * 180 / Math.PI;
+  cam3.aspect = aspect;
+  cam3.updateProjectionMatrix();
+  applyCamPose(c);
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-  renderer.setSize(r.width, r.height, false);
+  renderer.setSize(W, H, false);
   renderer.render(scene, cam3);
   const cf = FF169_DIAG / Math.hypot(sn.w, sn.h);
   const eq = Math.round(c.fl * cf);
@@ -844,20 +883,21 @@ function renderProps() {
   const box = $("props");
   box.textContent = "";
   const o = sel();
+  if (!o) { box.hidden = true; return; }
+  box.hidden = false;
+  const head = document.createElement("div");
+  head.className = "propsHead";
   const title = document.createElement("div");
   title.className = "ptitle";
-  if (!o) {
-    title.textContent = "プロパティ";
-    const p = document.createElement("div");
-    p.id = "noSel";
-    p.textContent = "3D画面か俯瞰マップで人物・箱をタップして選択、そのままドラッグで移動できます。カメラは俯瞰マップでタップ。選択するとここで回転・高さ・レンズなどを調整できます。";
-    box.append(title, p);
-    return;
-  }
+  const closeB = document.createElement("button");
+  closeB.id = "propsClose";
+  closeB.textContent = "✕";
+  closeB.addEventListener("click", () => { selId = null; renderAll(); });
+  head.append(title, closeB);
+  box.appendChild(head);
 
   if (o.type === "person") {
     title.textContent = "人物 " + o.label;
-    box.appendChild(title);
     // colors
     const crow = document.createElement("div");
     crow.className = "prow";
@@ -929,7 +969,6 @@ function renderProps() {
     box.appendChild(det);
   } else if (o.type === "camera") {
     title.textContent = "カメラ" + (o.id === cut().camId ? "(表示中)" : "");
-    box.appendChild(title);
     // sensor
     const srow = document.createElement("div");
     srow.className = "prow";
@@ -950,7 +989,6 @@ function renderProps() {
     box.appendChild(slider("チルト", -45, 45, 1, o.tilt || 0, "°", v => { o.tilt = v; renderAll(false); }));
   } else {
     title.textContent = "箱・小道具";
-    box.appendChild(title);
     box.appendChild(slider("幅", 0.2, 4, 0.1, o.w, "m", v => { o.w = v; renderAll(false); }));
     box.appendChild(slider("奥行", 0.2, 4, 0.1, o.d, "m", v => { o.d = v; renderAll(false); }));
     box.appendChild(slider("高さ", 0.1, 3, 0.05, o.bh, "m", v => { o.bh = v; renderAll(false); }));
@@ -1117,14 +1155,36 @@ $("delCut").addEventListener("click", () => {
   save(); renderAll(); renderCutSel();
 });
 
-$("exportPng").addEventListener("click", () => {
-  renderCam(); // ensure fresh frame
+function doExportPng() {
+  const c = activeCam();
+  if (!c) { alert("カメラがありません(＋カメラで追加)"); return; }
+  syncScene();
+  const sn = sensor169(c.sensor);
+  cam3.fov = 2 * Math.atan(sn.h / 2 / c.fl) * 180 / Math.PI;
+  cam3.aspect = 16 / 9;
+  cam3.updateProjectionMatrix();
+  applyCamPose(c);
+  renderer.setPixelRatio(1);
+  renderer.setSize(1920, 1080, false);
+  renderer.render(scene, cam3);
   const a = document.createElement("a");
-  a.href = $("cam3d").toDataURL("image/png");
+  a.href = camCanvas.toDataURL("image/png");
   a.download = (cut().name || "shot").replace(/[\\/:*?"<>|\s]+/g, "_") + ".png";
   document.body.appendChild(a);
   a.click();
   a.remove();
+  renderCam(); // 画面表示を復元
+}
+$("exportPng").addEventListener("click", doExportPng);
+$("drawerExport").addEventListener("click", () => { $("drawer").hidden = true; doExportPng(); });
+
+/* menu drawer + minimap toggle */
+$("menuBtn").addEventListener("click", () => { renderCutSel(); $("drawer").hidden = false; });
+$("drawerBack").addEventListener("click", () => { $("drawer").hidden = true; });
+$("mapBtn").addEventListener("click", () => {
+  const pw = $("planWrap");
+  pw.hidden = !pw.hidden;
+  if (!pw.hidden) { resizePlan(); }
 });
 
 /* ================= first-person camera mode (Minecraft-style) ================= */
@@ -1271,18 +1331,16 @@ for (const ev of ["pointerup", "pointercancel"]) {
   camCanvas.addEventListener(ev, () => { if (camDrag) { camDrag = null; save(); } });
 }
 
-/* keep the 3D stage a true 16:9 inside its column */
-function fitCamWrap() {
-  const col = $("camCol");
-  const cw = $("camWrap");
-  cw.style.width = "";
-  cw.style.height = "";
-  const r = col.getBoundingClientRect();
-  if (!r.width || !r.height) return;
-  let w = r.width, h = w * 9 / 16;
-  if (h > r.height) { h = r.height; w = h * 16 / 9; }
-  cw.style.width = w + "px";
-  cw.style.height = h + "px";
+/* center the 16:9 framing guide over the fullscreen 3D view */
+function fitGuide() {
+  const W = window.innerWidth, H = window.innerHeight;
+  let w = W, h = w * 9 / 16;
+  if (h > H) { h = H; w = h * 16 / 9; }
+  const g = $("frameGuide");
+  g.style.left = (W - w) / 2 + "px";
+  g.style.top = (H - h) / 2 + "px";
+  g.style.width = w + "px";
+  g.style.height = h + "px";
 }
 
 /* ================= glue ================= */
@@ -1302,12 +1360,13 @@ function renderAll(withProps = true) {
   if (withProps || lastProps !== selId) { renderProps(); lastProps = selId; }
 }
 
-window.addEventListener("resize", () => { fitCamWrap(); resizePlan(); renderCam(); });
+window.addEventListener("resize", () => { fitGuide(); resizePlan(); renderCam(); });
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }
 
-fitCamWrap();
+fitGuide();
+if (window.matchMedia("(max-width: 700px)").matches) $("planWrap").hidden = true;
 resizePlan();
 renderCutSel();
 renderAll();
