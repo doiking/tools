@@ -538,7 +538,7 @@ function buildPerson(o) {
 
   // torso bends forward from the pelvis
   const torsoPivot = new THREE.Group();
-  torsoPivot.rotation.x = -pv.bend * D2R;
+  torsoPivot.rotation.x = pv.bend * D2R; // 正=前屈(キャラ正面は+z)
   pelvis.add(torsoPivot);
   const torso = new THREE.Mesh(new THREE.CapsuleGeometry(torsoR, torsoLen, 6, 14), mat());
   torso.position.y = shoulderY / 2 + 0.04 * s;
