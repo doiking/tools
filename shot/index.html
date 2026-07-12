@@ -1230,10 +1230,12 @@ document.addEventListener("keydown", (e) => {
 });
 document.addEventListener("keyup", (e) => { fpsKeys.delete(e.code); });
 document.addEventListener("wheel", (e) => {
-  if (!fpsActive()) return;
+  if (!fpsActive() && e.target !== camCanvas) return;
   e.preventDefault();
   const c = activeCam();
-  if (c) c.fl = Math.round(Math.min(300, Math.max(8, c.fl * Math.exp(-e.deltaY * 0.001)))); // 上スクロール=望遠
+  if (!c) return;
+  c.fl = Math.round(Math.min(300, Math.max(8, c.fl * Math.exp(-e.deltaY * 0.001)))); // 上スクロール=望遠
+  if (!fpsActive()) { save(); renderAll(); }
 }, { passive: false });
 
 function fpsStep(t) {
@@ -1303,32 +1305,84 @@ function dragPoint(e) {
   return raycaster.ray.intersectPlane(dragPlane, p) ? p : null;
 }
 
-let camDrag = null; // {id, offX, offZ}
+let camDrag = null;   // オブジェクト移動 {id, offX, offZ}
+let camLook = null;   // パン・チルト {px, py}
+let camPinch = null;  // ピンチズーム {d0, fl0}
+let camDirty = false; // ピンチ等で変更があり保存待ち
+const camPtrs = new Map();
+
+function pinchDist() {
+  const [a, b] = [...camPtrs.values()];
+  return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+}
+
 camCanvas.addEventListener("pointerdown", (e) => {
   sceneMenu.hidden = true;
   if (fpsActive()) return;
+  try { camCanvas.setPointerCapture(e.pointerId); } catch (err) {}
+  camPtrs.set(e.pointerId, e);
+  if (camPtrs.size === 2) {
+    // 2本目の指でピンチズームへ移行
+    camDrag = null; camLook = null;
+    const c = activeCam();
+    camPinch = c ? { d0: pinchDist(), fl0: c.fl } : null;
+    return;
+  }
   const hit = pick3d(e);
-  if (!hit) return;
-  selId = hit.id;
-  const o = objs().find(x => x.id === hit.id);
-  dragPlane.constant = -hit.point.y;
-  const g = dragPoint(e);
-  camDrag = (o && g) ? { id: hit.id, offX: o.x - g.x, offZ: o.z - g.z } : null;
-  camCanvas.setPointerCapture(e.pointerId);
-  renderAll();
+  if (hit) {
+    selId = hit.id;
+    const o = objs().find(x => x.id === hit.id);
+    dragPlane.constant = -hit.point.y;
+    const g = dragPoint(e);
+    camDrag = (o && g) ? { id: hit.id, offX: o.x - g.x, offZ: o.z - g.z } : null;
+    renderAll();
+  } else if (activeCam()) {
+    camLook = { px: e.clientX, py: e.clientY }; // 空振り=カメラのパン・チルト
+  }
 });
 camCanvas.addEventListener("pointermove", (e) => {
-  if (!camDrag || fpsActive()) return;
-  const o = objs().find(x => x.id === camDrag.id);
-  const g = dragPoint(e);
-  if (o && g) {
-    o.x = Math.round((g.x + camDrag.offX) * 10) / 10;
-    o.z = Math.round((g.z + camDrag.offZ) * 10) / 10;
-    renderAll(false);
+  if (!camPtrs.has(e.pointerId) || fpsActive()) return;
+  camPtrs.set(e.pointerId, e);
+  if (camPinch && camPtrs.size === 2) {
+    const c = activeCam();
+    if (c) {
+      c.fl = Math.round(Math.min(300, Math.max(8, camPinch.fl0 * pinchDist() / camPinch.d0)));
+      camDirty = true;
+      renderCam(); drawPlan();
+    }
+    return;
+  }
+  if (camDrag) {
+    const o = objs().find(x => x.id === camDrag.id);
+    const g = dragPoint(e);
+    if (o && g) {
+      o.x = Math.round((g.x + camDrag.offX) * 10) / 10;
+      o.z = Math.round((g.z + camDrag.offZ) * 10) / 10;
+      renderAll(false);
+    }
+  } else if (camLook) {
+    const c = activeCam();
+    if (!c) return;
+    // 掴んだ景色が指に付いてくる方向。移動量は現在の画角に比例
+    const dx = e.clientX - camLook.px, dy = e.clientY - camLook.py;
+    camLook.px = e.clientX; camLook.py = e.clientY;
+    const fovV = cam3.fov * Math.PI / 180;
+    const fovH = 2 * Math.atan(Math.tan(fovV / 2) * cam3.aspect);
+    c.rot -= dx / window.innerWidth * fovH;
+    c.tilt = Math.max(-89, Math.min(89,
+      Math.round(((c.tilt || 0) + dy / window.innerHeight * cam3.fov) * 10) / 10));
+    renderCam(); drawPlan();
   }
 });
 for (const ev of ["pointerup", "pointercancel"]) {
-  camCanvas.addEventListener(ev, () => { if (camDrag) { camDrag = null; save(); } });
+  camCanvas.addEventListener(ev, (e) => {
+    camPtrs.delete(e.pointerId);
+    if (camPtrs.size < 2) camPinch = null;
+    if (camPtrs.size === 0 && (camDrag || camLook || camDirty)) {
+      camDrag = null; camLook = null; camDirty = false;
+      save(); renderAll();
+    }
+  });
 }
 
 /* center the 16:9 framing guide over the fullscreen 3D view */
