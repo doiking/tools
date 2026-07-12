@@ -1,5 +1,5 @@
 /* Prompter service worker: cache-first so the app works offline on set. */
-const CACHE = "bitrate-v1";
+const CACHE = "bitrate-v2";
 const ASSETS = [
   "./",
   "./index.html",

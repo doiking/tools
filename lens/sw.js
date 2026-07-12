@@ -1,5 +1,5 @@
 /* Prompter service worker: cache-first so the app works offline on set. */
-const CACHE = "lens-v1";
+const CACHE = "lens-v2";
 const ASSETS = [
   "./",
   "./index.html",
