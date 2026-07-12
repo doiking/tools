@@ -213,7 +213,11 @@
     #printView h1 { font-size: 16pt; margin: 0; }
     #printView .plogo { height: 8mm; }
     #printView .meta { font-size: 9pt; color: #444; margin-bottom: 4mm; }
-    #printView table { width: 100%; border-collapse: collapse; }
+    #printView table {
+      width: calc(100% - 1mm); /* 右端の罫線がページ端で切れるのを防ぐ */
+      border-collapse: collapse;
+      border: 1.2px solid #888;
+    }
     #printView th, #printView td {
       border: 1px solid #888;
       padding: 2mm;
