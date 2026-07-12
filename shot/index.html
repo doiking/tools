@@ -449,6 +449,23 @@ for (const c of state.cuts) {
   }
 }
 
+// 絵コンテからの「このカットを3Dでつくる」リクエストを処理。
+// 既にリンク済みならそのカットを開き、なければ新規作成して紐付ける
+(function handleStoryboardRequest() {
+  let req = null;
+  try { req = JSON.parse(localStorage.getItem("shot.request.v1")); } catch (e) {}
+  if (!req) return;
+  localStorage.removeItem("shot.request.v1");
+  let target = state.cuts.find(c => c.sbRef && c.sbRef.cutId === req.cutId);
+  if (!target) {
+    target = defaultCut(req.title || "絵コンテカット");
+    target.sbRef = { boardId: req.boardId, cutId: req.cutId };
+    state.cuts.push(target);
+  }
+  state.currentId = target.id;
+  save();
+})();
+
 function save() { try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {} }
 function cut() { return state.cuts.find(c => c.id === state.currentId); }
 function objs() { return cut().objects; }
@@ -1145,6 +1162,7 @@ $("newCut").addEventListener("click", () => {
 $("dupCut").addEventListener("click", () => {
   const c = JSON.parse(JSON.stringify(cut()));
   c.id = newId();
+  delete c.sbRef; // リンクは複製しない(1カット=1リンク)
   c.name = cut().name + " のコピー";
   // remap object ids
   for (const o of c.objects) {
@@ -1200,6 +1218,28 @@ function sendToStoryboard() {
   renderer.render(scene, cam3);
   const img = camCanvas.toDataURL("image/jpeg", 0.82);
   renderCam();
+  // 絵コンテ発のカットなら、元のカットへ画を書き戻す
+  const ref = cut().sbRef;
+  if (ref) {
+    let sb = null;
+    try { sb = JSON.parse(localStorage.getItem("storyboard.v1")); } catch (e) {}
+    const b = sb && sb.boards ? sb.boards.find(x => x.id === ref.boardId) : null;
+    const target = b ? b.cuts.find(x => x.id === ref.cutId) : null;
+    if (target) {
+      target.img = img;
+      try {
+        localStorage.setItem("storyboard.v1", JSON.stringify(sb));
+        if (confirm("絵コンテのカットへ画を反映しました。絵コンテに戻りますか?")) {
+          location.href = "../storyboard/";
+        }
+        return;
+      } catch (e) {
+        alert("保存容量が足りず反映できませんでした。絵コンテ側で古いボードを整理してください。");
+        return;
+      }
+    }
+    // リンク先が消えていたら通常送信にフォールバック
+  }
   const KEY = "storyboard.inbox.v1";
   let inbox = [];
   try { inbox = JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) {}
@@ -1219,7 +1259,11 @@ $("sbSend").addEventListener("click", sendToStoryboard);
 $("drawerExport").addEventListener("click", () => { $("drawer").hidden = true; doExportPng(); });
 
 /* menu drawer + minimap toggle */
-$("menuBtn").addEventListener("click", () => { renderCutSel(); $("drawer").hidden = false; });
+$("menuBtn").addEventListener("click", () => {
+  renderCutSel();
+  $("sbSend").textContent = cut().sbRef ? "🎬 絵コンテのカットへ画を反映" : "🎬 このカットを絵コンテへ送る";
+  $("drawer").hidden = false;
+});
 $("drawerBack").addEventListener("click", () => { $("drawer").hidden = true; });
 $("mapBtn").addEventListener("click", () => {
   const pw = $("planWrap");

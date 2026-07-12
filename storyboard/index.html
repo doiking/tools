@@ -110,6 +110,13 @@
   }
   .cbody textarea:focus { outline: none; border-color: var(--accent); }
   .cbody .lbl { font-size: 10.5px; color: var(--dim); letter-spacing: .08em; margin-bottom: -3px; }
+  .cbody .to3d {
+    margin-top: 2px;
+    background: #24242c; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 8px;
+    font-size: 12.5px; padding: 8px 0;
+  }
+  .cbody .to3d:active { background: var(--accent); color: #17130a; }
 
   #addCard {
     border: 2px dashed var(--line);
@@ -382,6 +389,21 @@ function cutCard(c, i) {
   };
   mkArea("アクション / カメラ", "action", 2, "例: Aが振り返る。カメラはドリーで寄り");
   mkArea("セリフ / 音", "dialog", 2, "例: A「おはよう」/ SE: ドアの音");
+
+  const to3d = document.createElement("button");
+  to3d.className = "to3d";
+  to3d.textContent = c.img ? "🎥 3Dで編集(ショットデザイナー)" : "🎥 ショットデザイナーでつくる";
+  to3d.addEventListener("click", () => {
+    try {
+      localStorage.setItem("shot.request.v1", JSON.stringify({
+        boardId: board().id,
+        cutId: c.id,
+        title: (board().title ? board().title + " " : "") + "C" + (i + 1),
+      }));
+    } catch (e) { alert("連携情報を書き込めませんでした"); return; }
+    location.href = "../shot/";
+  });
+  body.appendChild(to3d);
 
   card.append(head, frame, body);
   return card;

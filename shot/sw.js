@@ -1,5 +1,5 @@
 /* Shot designer service worker: cache-first so the app works offline on set. */
-const CACHE = "shot-v9";
+const CACHE = "shot-v10";
 const ASSETS = [
   "./",
   "./index.html",
