@@ -149,6 +149,12 @@
   .prowBtns button.danger { color: #ff8484; }
   .prowBtns button.acc { background: var(--accent); color: #17130a; border-color: var(--accent); font-weight: 700; }
   #noSel { color: var(--dim); font-size: 13.5px; line-height: 1.8; }
+  #props details { margin-top: 4px; border-top: 1px solid #26262e; padding-top: 8px; }
+  #props summary {
+    font-size: 13px; color: var(--dim);
+    cursor: pointer; padding: 4px 0 10px;
+    -webkit-user-select: none; user-select: none;
+  }
 
   @media (max-width: 780px), (orientation: portrait) {
     #main { flex-direction: column; }
@@ -210,18 +216,57 @@ import * as THREE from "./vendor/three.module.min.js";
 const LS_KEY = "shot.v1";
 const $ = (id) => document.getElementById(id);
 const PERSON_COLORS = ["#f7c114", "#ff6b5a", "#4aa3ff", "#3ecf6e", "#c07bff", "#ff9a3c"];
-const FF_HALF_H = 18, FF_HALF_V = 10.125; // 35mm判 16:9 (36×20.25mm) の半値
+
+// sensors (native size; the app always shoots 16:9 so we use the 16:9 crop)
+const SENSORS = [
+  { n: "フルサイズ", w: 36.0, h: 24.0 },
+  { n: "Super35", w: 24.9, h: 18.7 },
+  { n: "APS-C", w: 23.6, h: 15.6 },
+  { n: "MFT", w: 17.3, h: 13.0 },
+  { n: "1型", w: 13.2, h: 8.8 },
+];
+function sensor169(name) {
+  const sn = SENSORS.find(x => x.n === name) || SENSORS[0];
+  const w = Math.min(sn.w, sn.h * 16 / 9);
+  return { w, h: w * 9 / 16 };
+}
+const FF169_DIAG = Math.hypot(36, 20.25);
+
+// mannequin pose (degrees)
+const DEFAULT_PV = { armRp: 0, armRa: 0, armRe: 0, armLp: 0, armLa: 0, armLe: 0,
+  legRp: 0, legRk: 0, legLp: 0, legLk: 0, bend: 0, headP: 0, headY: 0 };
+const POSE_PRESETS = {
+  "立ち": {},
+  "歩き": { armRp: 28, armLp: -28, armRe: 12, armLe: 12, legRp: -16, legRk: 18, legLp: 22, bend: 3 },
+  "走り": { armRp: 60, armLp: -50, armRe: 100, armLe: 100, legRp: -35, legRk: 70, legLp: 45, legLk: 30, bend: 14 },
+  "座り": { legRp: 85, legRk: 85, legLp: 85, legLk: 85, armRp: 20, armLp: 20, armRe: 25, armLe: 25, bend: 4 },
+  "指差し": { armRp: 85, armRa: 10 },
+  "電話": { armRp: 18, armRa: 6, armRe: 152, headY: -10 },
+  "万歳": { armRp: 168, armLp: 168, armRa: 18, armLa: 18 },
+  "お辞儀": { bend: 48, headP: 12, armRp: 8, armLp: 8 },
+};
+const FACES = [["normal", "普通"], ["smile", "笑顔"], ["surprise", "驚き"], ["angry", "怒り"]];
+function migratePerson(o) {
+  if (!o.pv) {
+    o.pv = Object.assign({}, DEFAULT_PV, o.pose === "sit" ? POSE_PRESETS["座り"] : {});
+    o.poseName = o.pose === "sit" ? "座り" : "立ち";
+    delete o.pose;
+  }
+  if (!o.face) o.face = "normal";
+}
 
 /* ================= data ================= */
 let uid = 0;
 const newId = () => Date.now().toString(36) + (uid++);
 
 function defaultCut(name) {
-  const cam = { id: newId(), type: "camera", x: 0, z: 3, rot: -Math.PI / 2, h: 1.5, fl: 35, tilt: 0 };
+  const cam = { id: newId(), type: "camera", x: 0, z: 3, rot: -Math.PI / 2, h: 1.5, fl: 35, tilt: 0, sensor: "フルサイズ" };
   return {
     id: newId(), name,
     objects: [
-      { id: newId(), type: "person", x: 0, z: 0, rot: Math.PI / 2, h: 1.7, pose: "stand", color: PERSON_COLORS[0], label: "A" },
+      { id: newId(), type: "person", x: 0, z: 0, rot: Math.PI / 2, h: 1.7,
+        pv: Object.assign({}, DEFAULT_PV), poseName: "立ち", face: "normal",
+        color: PERSON_COLORS[0], label: "A" },
       cam,
     ],
     camId: cam.id,
@@ -235,6 +280,12 @@ if (!state.cuts || !state.cuts.length) {
   state = { cuts: [c], currentId: c.id };
 }
 if (!state.cuts.find(c => c.id === state.currentId)) state.currentId = state.cuts[0].id;
+for (const c of state.cuts) {
+  for (const o of c.objects) {
+    if (o.type === "person") migratePerson(o);
+    if (o.type === "camera" && !o.sensor) o.sensor = "フルサイズ";
+  }
+}
 
 function save() { try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {} }
 function cut() { return state.cuts.find(c => c.id === state.currentId); }
@@ -292,7 +343,7 @@ function drawPlan() {
     if (o.type === "camera") {
       const active = o.id === cut().camId;
       // FOV cone
-      const half = Math.atan(FF_HALF_H / o.fl);
+      const half = Math.atan(sensor169(o.sensor).w / 2 / o.fl);
       const len = 4 * view.scale;
       pctx.fillStyle = active ? "rgba(247,193,20,.13)" : "rgba(150,150,160,.08)";
       pctx.beginPath();
@@ -447,24 +498,125 @@ scene.add(grid);
 
 const meshCache = new Map(); // id → {group, key}
 
-function personKey(o) { return ["p", o.h, o.pose, o.color].join("|"); }
+function disposeGroup(g) {
+  g.traverse(n => {
+    if (n.geometry) n.geometry.dispose();
+    if (n.material) n.material.dispose();
+  });
+}
+
+/* ---- articulated mannequin ---- */
+const D2R = Math.PI / 180;
+function personKey(o) { return JSON.stringify(["p", o.h, o.color, o.face, o.pv]); }
+
 function buildPerson(o) {
+  const s = o.h / 1.7;
+  const pv = o.pv || DEFAULT_PV;
+  const mat = () => new THREE.MeshLambertMaterial({ color: o.color });
+  const dark = () => new THREE.MeshLambertMaterial({ color: 0x222226 });
+
+  const headR = 0.105 * s;
+  const torsoR = 0.14 * s, torsoLen = 0.36 * s;
+  const shoulderY = 0.50 * s;                 // from pelvis
+  const upperLen = 0.28 * s, foreLen = 0.24 * s, armR = 0.045 * s;
+  const thighLen = 0.42 * s, shinLen = 0.48 * s, legR = 0.06 * s;
+
+  // pelvis height so the lower foot stays on the ground
+  const legH = (p, k) =>
+    Math.max(0, thighLen * Math.cos(p * D2R)) + Math.max(0, shinLen * Math.cos((p - k) * D2R));
+  const pelvisY = Math.max(legH(pv.legRp, pv.legRk), legH(pv.legLp, pv.legLk), 0.30 * s);
+
   const g = new THREE.Group();
-  const mat = new THREE.MeshLambertMaterial({ color: o.color });
-  const H = o.pose === "sit" ? o.h * 0.76 : o.h;
-  const headR = 0.105 * (o.h / 1.7);
-  const torsoR = 0.155 * (o.h / 1.7);
-  const torsoLen = Math.max(0.2, H - headR * 2 - torsoR * 2 - 0.06);
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(torsoR, torsoLen, 6, 14), mat);
-  torso.position.y = torsoR + torsoLen / 2 + 0.02;
-  const head = new THREE.Mesh(new THREE.SphereGeometry(headR, 18, 14), mat);
-  head.position.y = H - headR;
-  // nose: shows facing direction
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(headR * 0.32, headR * 0.8, 10),
-    new THREE.MeshLambertMaterial({ color: 0x222222 }));
-  nose.rotation.x = Math.PI / 2;
-  nose.position.set(0, H - headR, headR * 0.95);
-  g.add(torso, head, nose);
+  const pelvis = new THREE.Group();
+  pelvis.position.y = pelvisY;
+  g.add(pelvis);
+
+  // hips block
+  const hips = new THREE.Mesh(new THREE.CapsuleGeometry(torsoR * 0.9, 0.06 * s, 4, 10), mat());
+  hips.rotation.z = Math.PI / 2;
+  pelvis.add(hips);
+
+  // torso bends forward from the pelvis
+  const torsoPivot = new THREE.Group();
+  torsoPivot.rotation.x = -pv.bend * D2R;
+  pelvis.add(torsoPivot);
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(torsoR, torsoLen, 6, 14), mat());
+  torso.position.y = shoulderY / 2 + 0.04 * s;
+  torsoPivot.add(torso);
+
+  // head + face
+  const neck = new THREE.Group();
+  neck.position.y = shoulderY + 0.02 * s;
+  neck.rotation.set(pv.headP * D2R, pv.headY * D2R, 0);
+  torsoPivot.add(neck);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(headR, 18, 14), mat());
+  head.position.y = headR + 0.04 * s;
+  neck.add(head);
+  const face = new THREE.Group();
+  face.position.y = headR + 0.04 * s;
+  neck.add(face);
+  const eyeGeo = new THREE.SphereGeometry(headR * 0.13, 8, 8);
+  for (const sx of [-1, 1]) {
+    const eye = new THREE.Mesh(eyeGeo.clone(), dark());
+    eye.position.set(sx * headR * 0.34, headR * 0.15, headR * 0.93);
+    face.add(eye);
+    if (o.face === "angry") {
+      const brow = new THREE.Mesh(new THREE.BoxGeometry(headR * 0.42, headR * 0.09, headR * 0.06), dark());
+      brow.position.set(sx * headR * 0.34, headR * 0.44, headR * 0.93);
+      brow.rotation.z = sx * 0.5;
+      face.add(brow);
+    }
+  }
+  let mouth;
+  if (o.face === "smile") {
+    mouth = new THREE.Mesh(new THREE.TorusGeometry(headR * 0.32, headR * 0.06, 8, 14, Math.PI), dark());
+    mouth.rotation.z = Math.PI;
+  } else if (o.face === "surprise") {
+    mouth = new THREE.Mesh(new THREE.TorusGeometry(headR * 0.16, headR * 0.06, 8, 14), dark());
+  } else {
+    mouth = new THREE.Mesh(new THREE.BoxGeometry(headR * (o.face === "angry" ? 0.4 : 0.5), headR * 0.08, headR * 0.06), dark());
+  }
+  mouth.position.set(0, -headR * 0.36, headR * 0.99);
+  face.add(mouth);
+
+  // arms: pivot at shoulder; abduction(z) → pitch(x), limb hangs down (-y)
+  const limb = (len, r, m) => {
+    const mesh = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 4, 10), m);
+    mesh.position.y = -len / 2;
+    return mesh;
+  };
+  for (const side of [1, -1]) { // 1 = 右(+x), -1 = 左
+    const a = side === 1 ? { p: pv.armRp, ab: pv.armRa, e: pv.armRe } : { p: pv.armLp, ab: pv.armLa, e: pv.armLe };
+    const shoulder = new THREE.Group();
+    shoulder.position.set(side * (torsoR + armR + 0.015 * s), shoulderY - 0.03 * s, 0);
+    shoulder.rotation.set(-a.p * D2R, 0, side * a.ab * D2R); // XYZ: abd applied first
+    torsoPivot.add(shoulder);
+    shoulder.add(limb(upperLen, armR, mat()));
+    const elbow = new THREE.Group();
+    elbow.position.y = -upperLen;
+    elbow.rotation.x = -a.e * D2R;
+    shoulder.add(elbow);
+    elbow.add(limb(foreLen, armR * 0.9, mat()));
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(armR * 1.3, 10, 8), mat());
+    hand.position.y = -foreLen - armR;
+    elbow.add(hand);
+
+    // legs
+    const l = side === 1 ? { p: pv.legRp, k: pv.legRk } : { p: pv.legLp, k: pv.legLk };
+    const hip = new THREE.Group();
+    hip.position.set(side * 0.09 * s, 0, 0);
+    hip.rotation.x = -l.p * D2R;
+    pelvis.add(hip);
+    hip.add(limb(thighLen, legR, mat()));
+    const knee = new THREE.Group();
+    knee.position.y = -thighLen;
+    knee.rotation.x = l.k * D2R;
+    hip.add(knee);
+    knee.add(limb(shinLen - 0.05 * s, legR * 0.85, mat()));
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(legR * 2, 0.05 * s, 0.16 * s), mat());
+    foot.position.set(0, -(shinLen - 0.03 * s), 0.04 * s);
+    knee.add(foot);
+  }
   return g;
 }
 function boxKey(o) { return ["b", o.w, o.d, o.bh].join("|"); }
@@ -503,7 +655,7 @@ function syncScene() {
     else { key = camKey(o, false); builder = buildCamModel; }
     let entry = meshCache.get(o.id);
     if (!entry || entry.key !== key) {
-      if (entry) scene.remove(entry.group);
+      if (entry) { scene.remove(entry.group); disposeGroup(entry.group); }
       entry = { group: builder(), key };
       scene.add(entry.group);
       meshCache.set(o.id, entry);
@@ -515,7 +667,7 @@ function syncScene() {
     alive.add(o.id);
   }
   for (const [id, entry] of meshCache) {
-    if (!alive.has(id)) { scene.remove(entry.group); meshCache.delete(id); }
+    if (!alive.has(id)) { scene.remove(entry.group); disposeGroup(entry.group); meshCache.delete(id); }
   }
 }
 
@@ -523,8 +675,8 @@ function renderCam() {
   const c = activeCam();
   if (!c) { renderer.clear(); $("camInfo").textContent = "カメラがありません(＋カメラで追加)"; return; }
   syncScene();
-  const fovV = 2 * Math.atan(FF_HALF_V / c.fl) * 180 / Math.PI;
-  cam3.fov = fovV;
+  const sn = sensor169(c.sensor);
+  cam3.fov = 2 * Math.atan(sn.h / 2 / c.fl) * 180 / Math.PI;
   cam3.aspect = 16 / 9;
   cam3.updateProjectionMatrix();
   const tilt = (c.tilt || 0) * Math.PI / 180;
@@ -538,7 +690,11 @@ function renderCam() {
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
   renderer.setSize(r.width, r.height, false);
   renderer.render(scene, cam3);
-  $("camInfo").textContent = "📷 " + c.fl + "mm(35mm判 16:9)/ 高さ" + c.h.toFixed(2) + "m / TILT " + (c.tilt || 0) + "°";
+  const cf = FF169_DIAG / Math.hypot(sn.w, sn.h);
+  const eq = Math.round(c.fl * cf);
+  $("camInfo").textContent = "📷 " + (c.sensor || "フルサイズ") + " " + c.fl + "mm" +
+    (cf > 1.01 ? "(フルサイズ換算 " + eq + "mm)" : "") +
+    " / 高さ" + c.h.toFixed(2) + "m / TILT " + (c.tilt || 0) + "°";
 }
 
 /* ================= property panel ================= */
@@ -589,26 +745,79 @@ function renderProps() {
     }
     crow.append(clb, cbtns);
     box.appendChild(crow);
-    // pose
+    // face
+    const frow = document.createElement("div");
+    frow.className = "prow";
+    const flb = document.createElement("label"); flb.textContent = "表情";
+    const fbtns = document.createElement("div"); fbtns.className = "btns";
+    for (const [k, n] of FACES) {
+      const b = document.createElement("button");
+      b.textContent = n;
+      if (o.face === k) b.classList.add("sel");
+      b.addEventListener("click", () => { o.face = k; save(); renderAll(); });
+      fbtns.appendChild(b);
+    }
+    frow.append(flb, fbtns);
+    box.appendChild(frow);
+    // pose presets
     const prow = document.createElement("div");
     prow.className = "prow";
     const plb = document.createElement("label"); plb.textContent = "ポーズ";
     const pbtns = document.createElement("div"); pbtns.className = "btns";
-    for (const [k, n] of [["stand", "立ち"], ["sit", "座り"]]) {
+    for (const name of Object.keys(POSE_PRESETS)) {
       const b = document.createElement("button");
-      b.textContent = n;
-      if (o.pose === k) b.classList.add("sel");
-      b.addEventListener("click", () => { o.pose = k; save(); renderAll(); });
+      b.textContent = name;
+      if (o.poseName === name) b.classList.add("sel");
+      b.addEventListener("click", () => {
+        o.pv = Object.assign({}, DEFAULT_PV, POSE_PRESETS[name]);
+        o.poseName = name;
+        save(); renderAll();
+      });
       pbtns.appendChild(b);
     }
     prow.append(plb, pbtns);
     box.appendChild(prow);
     box.appendChild(slider("身長", 1.2, 2.0, 0.01, o.h, "m", v => { o.h = v; renderAll(false); }));
     box.appendChild(slider("向き", -180, 180, 1, o.rot * 180 / Math.PI, "°", v => { o.rot = v * Math.PI / 180; renderAll(false); }));
+    // fine-tune limbs
+    const det = document.createElement("details");
+    const sum = document.createElement("summary");
+    sum.textContent = "手足を細かく動かす";
+    det.appendChild(sum);
+    const pvSlider = (label, key, min, max) =>
+      det.appendChild(slider(label, min, max, 1, o.pv[key], "°", v => { o.pv[key] = v; o.poseName = null; renderAll(false); }));
+    pvSlider("右腕 上げ", "armRp", -45, 180);
+    pvSlider("右腕 開き", "armRa", 0, 90);
+    pvSlider("右ひじ", "armRe", 0, 150);
+    pvSlider("左腕 上げ", "armLp", -45, 180);
+    pvSlider("左腕 開き", "armLa", 0, 90);
+    pvSlider("左ひじ", "armLe", 0, 150);
+    pvSlider("右脚 前後", "legRp", -45, 95);
+    pvSlider("右ひざ", "legRk", 0, 140);
+    pvSlider("左脚 前後", "legLp", -45, 95);
+    pvSlider("左ひざ", "legLk", 0, 140);
+    pvSlider("上体 前屈", "bend", -20, 60);
+    pvSlider("首 上下", "headP", -35, 40);
+    pvSlider("首 左右", "headY", -70, 70);
+    box.appendChild(det);
   } else if (o.type === "camera") {
     title.textContent = "カメラ" + (o.id === cut().camId ? "(表示中)" : "");
     box.appendChild(title);
-    box.appendChild(slider("焦点距離", 12, 200, 1, o.fl, "mm", v => { o.fl = v; renderAll(false); }));
+    // sensor
+    const srow = document.createElement("div");
+    srow.className = "prow";
+    const slb = document.createElement("label"); slb.textContent = "センサー";
+    const sbtns = document.createElement("div"); sbtns.className = "btns";
+    for (const sn of SENSORS) {
+      const b = document.createElement("button");
+      b.textContent = sn.n;
+      if ((o.sensor || "フルサイズ") === sn.n) b.classList.add("sel");
+      b.addEventListener("click", () => { o.sensor = sn.n; save(); renderAll(); });
+      sbtns.appendChild(b);
+    }
+    srow.append(slb, sbtns);
+    box.appendChild(srow);
+    box.appendChild(slider("焦点距離", 8, 300, 1, o.fl, "mm", v => { o.fl = v; renderAll(false); }));
     box.appendChild(slider("高さ", 0.2, 3.5, 0.05, o.h, "m", v => { o.h = v; renderAll(false); }));
     box.appendChild(slider("パン(向き)", -180, 180, 1, o.rot * 180 / Math.PI, "°", v => { o.rot = v * Math.PI / 180; renderAll(false); }));
     box.appendChild(slider("チルト", -45, 45, 1, o.tilt || 0, "°", v => { o.tilt = v; renderAll(false); }));
@@ -642,7 +851,8 @@ function renderProps() {
         if (d < bd) { bd = d; best = p; }
       }
       o.rot = Math.atan2(best.z - o.z, best.x - o.x);
-      const eyeY = (best.pose === "sit" ? best.h * 0.76 : best.h) * 0.9;
+      const sitting = best.pv && (best.pv.legRp > 60 || best.pv.legLp > 60);
+      const eyeY = best.h * (sitting ? 0.62 : 0.9);
       o.tilt = Math.round(Math.atan2(eyeY * 0.75 - o.h, bd) * 180 / Math.PI);
       save(); renderAll();
     });
@@ -684,12 +894,13 @@ function nextLabel() {
 $("addPerson").addEventListener("click", () => {
   const i = objs().filter(o => o.type === "person").length;
   const o = { id: newId(), type: "person", x: view.cx + (i % 3 - 1) * 0.8, z: view.cz, rot: Math.PI / 2,
-    h: 1.7, pose: "stand", color: PERSON_COLORS[i % PERSON_COLORS.length], label: nextLabel() };
+    h: 1.7, pv: Object.assign({}, DEFAULT_PV), poseName: "立ち", face: "normal",
+    color: PERSON_COLORS[i % PERSON_COLORS.length], label: nextLabel() };
   objs().push(o); selId = o.id;
   save(); renderAll();
 });
 $("addCam").addEventListener("click", () => {
-  const o = { id: newId(), type: "camera", x: view.cx, z: view.cz + 2.5, rot: -Math.PI / 2, h: 1.5, fl: 35, tilt: 0 };
+  const o = { id: newId(), type: "camera", x: view.cx, z: view.cz + 2.5, rot: -Math.PI / 2, h: 1.5, fl: 35, tilt: 0, sensor: "フルサイズ" };
   objs().push(o);
   if (!activeCam()) cut().camId = o.id;
   selId = o.id;
