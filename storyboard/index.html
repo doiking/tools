@@ -54,77 +54,102 @@
   #grid {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    max-width: 860px;
+    gap: 10px;
+    max-width: 980px;
     margin: 0 auto;
   }
+  :root { --sbcols: 46px 300px 1.1fr 0.9fr 64px 44px; }
+  #listHead {
+    display: grid;
+    grid-template-columns: var(--sbcols);
+    gap: 0;
+    padding: 0 2px;
+    font-size: 11px; color: var(--dim); letter-spacing: .08em;
+  }
+  #listHead span { padding: 2px 8px; }
   .card {
     background: var(--panel);
     border: 1px solid var(--line);
-    border-radius: 14px;
+    border-radius: 12px;
     overflow: hidden;
     display: grid;
-    grid-template-columns: 320px 1fr;
-    grid-template-areas: "frame head" "frame body";
-    grid-template-rows: auto 1fr;
+    grid-template-columns: var(--sbcols);
+    align-items: stretch;
   }
-  .chead {
-    grid-area: head;
-    display: flex; align-items: center; gap: 8px;
-    padding: 8px 10px;
-    border-bottom: 1px solid #26262c;
+  .cno {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; font-weight: 800; color: var(--accent);
+    border-right: 1px solid #26262c;
   }
-  .cno { font-size: 15px; font-weight: 800; color: var(--accent); min-width: 34px; }
-  .chead input.sec {
-    width: 58px;
-    background: #16161b; color: var(--fg);
-    border: 1px solid var(--line); border-radius: 7px;
-    font-size: 14px; font-weight: 700; padding: 6px 6px; text-align: right;
-    -webkit-user-select: text; user-select: text;
-  }
-  .chead .unit { font-size: 12px; color: var(--dim); }
-  .chead .sp { flex: 1; }
-  .chead button {
-    background: #24242c; color: var(--fg);
-    border: 1px solid var(--line); border-radius: 7px;
-    font-size: 13px; padding: 6px 9px;
-  }
-  .chead button.del { color: #ff8484; }
   .frame {
-    grid-area: frame;
     aspect-ratio: 16 / 9;
     background: #101014;
     position: relative;
     cursor: pointer;
     align-self: center;
     border-right: 1px solid #26262c;
+    width: 100%;
   }
   .frame img { width: 100%; height: 100%; object-fit: contain; display: block; }
   .frame .empty {
     position: absolute; inset: 0;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    color: var(--dim); font-size: 12.5px; gap: 4px; text-align: center;
+    color: var(--dim); font-size: 12px; gap: 4px; text-align: center;
   }
-  .frame .empty .big { font-size: 26px; }
-  .cbody { grid-area: body; padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 6px; }
-  .cbody textarea {
-    background: #16161b; color: var(--fg);
-    border: 1px solid var(--line); border-radius: 8px;
-    font-size: 13.5px; line-height: 1.6;
-    padding: 7px 9px;
+  .frame .empty .big { font-size: 24px; }
+  .cell {
+    display: flex; flex-direction: column;
+    border-right: 1px solid #26262c;
+    padding: 6px;
+  }
+  .cell .lbl { display: none; font-size: 10.5px; color: var(--dim); letter-spacing: .08em; margin: 2px 2px 4px; }
+  .cell textarea {
+    flex: 1;
+    min-height: 96px;
+    background: transparent; color: var(--fg);
+    border: none; border-radius: 6px;
+    font-size: 13.5px; line-height: 1.65;
+    padding: 6px 7px;
     resize: none;
     font-family: inherit;
     -webkit-user-select: text; user-select: text;
   }
-  .cbody textarea:focus { outline: none; border-color: var(--accent); }
-  .cbody .lbl { font-size: 10.5px; color: var(--dim); letter-spacing: .08em; margin-bottom: -3px; }
-  .cbody .to3d {
-    margin-top: 2px;
-    background: #24242c; color: var(--fg);
-    border: 1px solid var(--line); border-radius: 8px;
-    font-size: 12.5px; padding: 8px 0;
+  .cell textarea:focus { outline: none; background: #16161b; }
+  .secCell { align-items: center; justify-content: center; gap: 4px; }
+  .secCell input {
+    width: 50px;
+    background: #16161b; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 7px;
+    font-size: 15px; font-weight: 700; padding: 7px 5px; text-align: center;
+    -webkit-user-select: text; user-select: text;
   }
-  .cbody .to3d:active { background: var(--accent); color: #17130a; }
+  .secCell input:focus { outline: none; border-color: var(--accent); }
+  .secCell .unit { font-size: 10.5px; color: var(--dim); }
+  .ctrl {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 4px; padding: 6px 0;
+  }
+  .ctrl button {
+    width: 32px; height: 30px;
+    background: #24242c; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 7px;
+    font-size: 13px; padding: 0;
+  }
+  .ctrl button.del { color: #ff8484; }
+  .ctrl button.b3d:active { background: var(--accent); color: #17130a; }
+
+  @media (max-width: 700px) {
+    #listHead { display: none; }
+    .card { grid-template-columns: 1fr; }
+    .cno, .frame, .cell { border-right: none; }
+    .cno { justify-content: flex-start; padding: 8px 12px 0; }
+    .frame { border-bottom: 1px solid #26262c; }
+    .cell .lbl { display: block; }
+    .cell textarea { min-height: 56px; background: #16161b; }
+    .secCell { flex-direction: row; justify-content: flex-start; padding: 6px 10px; }
+    .ctrl { flex-direction: row; justify-content: flex-end; padding: 4px 8px 8px; }
+  }
 
   #addCard {
     border: 2px dashed var(--line);
@@ -303,6 +328,14 @@ let uploadTarget = null;
 function renderGrid() {
   const g = $("grid");
   g.textContent = "";
+  const head = document.createElement("div");
+  head.id = "listHead";
+  for (const t of ["No", "画", "アクション / カメラ", "セリフ / 音", "秒", ""]) {
+    const sp = document.createElement("span");
+    sp.textContent = t;
+    head.appendChild(sp);
+  }
+  g.appendChild(head);
   board().cuts.forEach((c, i) => g.appendChild(cutCard(c, i)));
   const add = document.createElement("button");
   add.id = "addCard";
@@ -318,56 +351,9 @@ function cutCard(c, i) {
   const card = document.createElement("div");
   card.className = "card";
 
-  const head = document.createElement("div");
-  head.className = "chead";
-  const no = document.createElement("span");
+  const no = document.createElement("div");
   no.className = "cno";
   no.textContent = "C" + (i + 1);
-  const sec = document.createElement("input");
-  sec.className = "sec";
-  sec.inputMode = "decimal";
-  sec.value = c.sec;
-  sec.addEventListener("change", () => {
-    const v = parseFloat(sec.value);
-    c.sec = Number.isFinite(v) && v >= 0 ? v : 3;
-    save(); renderTop();
-    sec.value = c.sec;
-  });
-  const unit = document.createElement("span");
-  unit.className = "unit";
-  unit.textContent = "秒";
-  const sp = document.createElement("span"); sp.className = "sp";
-  const mkBtn = (label, title, fn) => {
-    const b = document.createElement("button");
-    b.textContent = label; b.title = title;
-    b.addEventListener("click", fn);
-    return b;
-  };
-  const left = mkBtn("◀", "前へ移動", () => {
-    if (i === 0) return;
-    const arr = board().cuts;
-    [arr[i - 1], arr[i]] = [arr[i], arr[i - 1]];
-    save(); renderAll();
-  });
-  const right = mkBtn("▶", "後ろへ移動", () => {
-    const arr = board().cuts;
-    if (i >= arr.length - 1) return;
-    [arr[i + 1], arr[i]] = [arr[i], arr[i + 1]];
-    save(); renderAll();
-  });
-  const dup = mkBtn("複製", "カットを複製", () => {
-    const copy = JSON.parse(JSON.stringify(c));
-    copy.id = newId();
-    board().cuts.splice(i + 1, 0, copy);
-    save(); renderAll();
-  });
-  const del = mkBtn("✕", "カットを削除", () => {
-    if (!confirm("C" + (i + 1) + " を削除しますか?")) return;
-    board().cuts.splice(i, 1);
-    save(); renderAll();
-  });
-  del.className = "del";
-  head.append(no, sec, unit, sp, left, right, dup, del);
 
   const frame = document.createElement("div");
   frame.className = "frame";
@@ -380,7 +366,7 @@ function cutCard(c, i) {
     const e = document.createElement("div");
     e.className = "empty";
     const b1 = document.createElement("span"); b1.className = "big"; b1.textContent = "🖼";
-    const b2 = document.createElement("span"); b2.textContent = "タップで画像を追加\n(ショットデザイナーからも送れます)";
+    const b2 = document.createElement("span"); b2.textContent = "タップで画像を追加\n(🎥ボタンで3Dからも作れます)";
     b2.style.whiteSpace = "pre-line";
     e.append(b1, b2);
     frame.appendChild(e);
@@ -391,38 +377,87 @@ function cutCard(c, i) {
     $("fileIn").click();
   });
 
-  const body = document.createElement("div");
-  body.className = "cbody";
-  const mkArea = (label, key, rows, placeholder) => {
+  const mkCell = (cls, label, key, placeholder) => {
+    const cell = document.createElement("div");
+    cell.className = "cell " + cls;
     const l = document.createElement("div");
     l.className = "lbl";
     l.textContent = label;
     const t = document.createElement("textarea");
-    t.rows = rows;
     t.placeholder = placeholder;
     t.value = c[key];
     t.addEventListener("input", () => { c[key] = t.value; save(); });
-    body.append(l, t);
+    cell.append(l, t);
+    return cell;
   };
-  mkArea("アクション / カメラ", "action", 2, "例: Aが振り返る。カメラはドリーで寄り");
-  mkArea("セリフ / 音", "dialog", 2, "例: A「おはよう」/ SE: ドアの音");
+  const act = mkCell("act", "アクション / カメラ", "action", "例: Aが振り返る。ドリーで寄り");
+  const dia = mkCell("dia", "セリフ / 音", "dialog", "例: A「おはよう」/ SE: ドアの音");
 
-  const to3d = document.createElement("button");
-  to3d.className = "to3d";
-  to3d.textContent = c.img ? "🎥 3Dで編集(ショットデザイナー)" : "🎥 ショットデザイナーでつくる";
-  to3d.addEventListener("click", () => {
-    try {
-      localStorage.setItem("shot.request.v1", JSON.stringify({
-        boardId: board().id,
-        cutId: c.id,
-        title: (board().title ? board().title + " " : "") + "C" + (i + 1),
-      }));
-    } catch (e) { alert("連携情報を書き込めませんでした"); return; }
-    location.href = "../shot/";
+  const secCell = document.createElement("div");
+  secCell.className = "cell secCell";
+  const slbl = document.createElement("div");
+  slbl.className = "lbl";
+  slbl.textContent = "秒";
+  const sec = document.createElement("input");
+  sec.inputMode = "decimal";
+  sec.value = c.sec;
+  sec.addEventListener("change", () => {
+    const v = parseFloat(sec.value);
+    c.sec = Number.isFinite(v) && v >= 0 ? v : 3;
+    save(); renderTop();
+    sec.value = c.sec;
   });
-  body.appendChild(to3d);
+  const unit = document.createElement("span");
+  unit.className = "unit";
+  unit.textContent = "秒";
+  secCell.append(slbl, sec, unit);
 
-  card.append(head, frame, body);
+  const ctrl = document.createElement("div");
+  ctrl.className = "ctrl";
+  const mkBtn = (label, title, cls, fn) => {
+    const b = document.createElement("button");
+    b.textContent = label; b.title = title;
+    if (cls) b.className = cls;
+    b.addEventListener("click", fn);
+    return b;
+  };
+  ctrl.append(
+    mkBtn("▲", "上へ移動", "", () => {
+      if (i === 0) return;
+      const arr = board().cuts;
+      [arr[i - 1], arr[i]] = [arr[i], arr[i - 1]];
+      save(); renderAll();
+    }),
+    mkBtn("▼", "下へ移動", "", () => {
+      const arr = board().cuts;
+      if (i >= arr.length - 1) return;
+      [arr[i + 1], arr[i]] = [arr[i], arr[i + 1]];
+      save(); renderAll();
+    }),
+    mkBtn("🎥", "ショットデザイナーでつくる/編集", "b3d", () => {
+      try {
+        localStorage.setItem("shot.request.v1", JSON.stringify({
+          boardId: board().id,
+          cutId: c.id,
+          title: (board().title ? board().title + " " : "") + "C" + (i + 1),
+        }));
+      } catch (e) { alert("連携情報を書き込めませんでした"); return; }
+      location.href = "../shot/";
+    }),
+    mkBtn("⧉", "カットを複製", "", () => {
+      const copy = JSON.parse(JSON.stringify(c));
+      copy.id = newId();
+      board().cuts.splice(i + 1, 0, copy);
+      save(); renderAll();
+    }),
+    mkBtn("✕", "カットを削除", "del", () => {
+      if (!confirm("C" + (i + 1) + " を削除しますか?")) return;
+      board().cuts.splice(i, 1);
+      save(); renderAll();
+    })
+  );
+
+  card.append(no, frame, act, dia, secCell, ctrl);
   return card;
 }
 
