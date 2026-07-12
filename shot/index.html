@@ -85,6 +85,23 @@
     border: 1px solid var(--line); border-radius: 9px;
     font-size: 13.5px; font-weight: 600; padding: 8px 11px;
   }
+  #sceneMenu[hidden] { display: none; }
+  #sceneMenu {
+    position: absolute; top: 52px; left: 8px;
+    display: flex; flex-direction: column; gap: 5px;
+    background: rgba(24,24,30,.97);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 8px;
+    z-index: 5;
+  }
+  #sceneMenu button {
+    background: #24242c; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 8px;
+    font-size: 13.5px; padding: 9px 14px;
+    text-align: left;
+  }
+  #sceneMenu button:active { background: var(--accent); color: #17130a; }
   #planZoom {
     position: absolute; bottom: 8px; left: 8px;
     display: flex; gap: 6px;
@@ -185,7 +202,9 @@
         <button id="addPerson">＋人物</button>
         <button id="addCam">＋カメラ</button>
         <button id="addBox">＋箱</button>
+        <button id="addScene">＋シーン</button>
       </div>
+      <div id="sceneMenu" hidden></div>
       <div id="planZoom">
         <button id="zoomIn">＋</button>
         <button id="zoomOut">−</button>
@@ -244,8 +263,73 @@ const POSE_PRESETS = {
   "電話": { armRp: 18, armRa: 6, armRe: 152, headY: -10 },
   "万歳": { armRp: 168, armLp: 168, armRa: 18, armLa: 18 },
   "お辞儀": { bend: 48, headP: 12, armRp: 8, armLp: 8 },
+  "構え": { legRp: 28, legRk: 32, legLp: -14, legLk: 22, armRp: 58, armRe: 115, armLp: 46, armLe: 125, bend: 10 },
+  "食べる": { legRp: 85, legRk: 85, legLp: 85, legLk: 85, armRp: 42, armRe: 122, armLp: 25, armLe: 45, bend: 8, headP: 10 },
+  "乾杯": { armRp: 52, armRa: 14, armRe: 95, headP: -4 },
 };
 const FACES = [["normal", "普通"], ["smile", "笑顔"], ["surprise", "驚き"], ["angry", "怒り"]];
+function mirrorPV(pv) {
+  const m = Object.assign({}, DEFAULT_PV, pv);
+  const swap = (a, b) => { const t = m[a]; m[a] = m[b]; m[b] = t; };
+  swap("armRp", "armLp"); swap("armRa", "armLa"); swap("armRe", "armLe");
+  swap("legRp", "legLp"); swap("legRk", "legLk");
+  m.headY = -m.headY;
+  return m;
+}
+
+// multi-person scene presets: offsets are relative to the current view center.
+// rotDeg: 0 = +x(東), 90 = +z(手前/南)
+const P = POSE_PRESETS;
+const SCENE_PRESETS = {
+  "食事(2人+テーブル)": {
+    boxes: [{ dx: 0, dz: 0, w: 1.2, d: 0.8, bh: 0.72 }],
+    people: [
+      { dx: 0, dz: -0.88, rotDeg: 90, pose: P["食べる"], face: "smile" },
+      { dx: 0, dz: 0.88, rotDeg: -90, pose: mirrorPV(P["食べる"]), face: "normal" },
+    ],
+  },
+  "対談(2人)": {
+    boxes: [{ dx: 0, dz: 0, w: 0.55, d: 0.55, bh: 0.45 }],
+    people: [
+      { dx: -0.95, dz: 0, rotDeg: 20, pose: P["座り"], face: "smile" },
+      { dx: 0.95, dz: 0, rotDeg: 160, pose: mirrorPV(P["座り"]), face: "normal" },
+    ],
+  },
+  "対決(2人)": {
+    people: [
+      { dx: -1.2, dz: 0, rotDeg: 0, pose: P["構え"], face: "angry" },
+      { dx: 1.2, dz: 0, rotDeg: 180, pose: mirrorPV(P["構え"]), face: "angry" },
+    ],
+  },
+  "会議(4人+テーブル)": {
+    boxes: [{ dx: 0, dz: 0, w: 1.8, d: 0.9, bh: 0.72 }],
+    people: [
+      { dx: -0.45, dz: -0.92, rotDeg: 90, pose: P["座り"], face: "normal" },
+      { dx: 0.45, dz: -0.92, rotDeg: 90, pose: P["座り"], face: "smile" },
+      { dx: -0.45, dz: 0.92, rotDeg: -90, pose: mirrorPV(P["座り"]), face: "normal" },
+      { dx: 0.45, dz: 0.92, rotDeg: -90, pose: P["座り"], face: "surprise" },
+    ],
+  },
+  "乾杯(2人)": {
+    people: [
+      { dx: -0.65, dz: 0, rotDeg: 0, pose: P["乾杯"], face: "smile" },
+      { dx: 0.65, dz: 0, rotDeg: 180, pose: P["乾杯"], face: "smile" },
+    ],
+  },
+  "プレゼン(3人)": {
+    people: [
+      { dx: 0, dz: -1.6, rotDeg: 90, pose: P["指差し"], face: "normal" },
+      { dx: -0.55, dz: 1.1, rotDeg: -90, pose: P["座り"], face: "normal" },
+      { dx: 0.55, dz: 1.1, rotDeg: -90, pose: mirrorPV(P["座り"]), face: "smile" },
+    ],
+  },
+  "並んで歩く(2人)": {
+    people: [
+      { dx: -0.45, dz: 0, rotDeg: 90, pose: P["歩き"], face: "smile" },
+      { dx: 0.45, dz: 0, rotDeg: 90, pose: mirrorPV(P["歩き"]), face: "normal" },
+    ],
+  },
+};
 function migratePerson(o) {
   if (!o.pv) {
     o.pv = Object.assign({}, DEFAULT_PV, o.pose === "sit" ? POSE_PRESETS["座り"] : {});
@@ -911,6 +995,36 @@ $("addBox").addEventListener("click", () => {
   objs().push(o); selId = o.id;
   save(); renderAll();
 });
+
+/* scene presets */
+const sceneMenu = $("sceneMenu");
+for (const key of Object.keys(SCENE_PRESETS)) {
+  const b = document.createElement("button");
+  b.textContent = key;
+  b.addEventListener("click", () => { sceneMenu.hidden = true; insertScene(key); });
+  sceneMenu.appendChild(b);
+}
+$("addScene").addEventListener("click", () => { sceneMenu.hidden = !sceneMenu.hidden; });
+plan.addEventListener("pointerdown", () => { sceneMenu.hidden = true; });
+
+function insertScene(key) {
+  const sc = SCENE_PRESETS[key];
+  const ox = Math.round(view.cx * 10) / 10, oz = Math.round(view.cz * 10) / 10;
+  for (const b of sc.boxes || []) {
+    objs().push({ id: newId(), type: "box", x: ox + b.dx, z: oz + b.dz,
+      rot: (b.rotDeg || 0) * D2R, w: b.w, d: b.d, bh: b.bh });
+  }
+  let ci = objs().filter(o => o.type === "person").length;
+  for (const p of sc.people) {
+    objs().push({ id: newId(), type: "person", x: ox + p.dx, z: oz + p.dz,
+      rot: p.rotDeg * D2R, h: 1.7,
+      pv: Object.assign({}, DEFAULT_PV, p.pose), poseName: null,
+      face: p.face || "normal",
+      color: PERSON_COLORS[ci++ % PERSON_COLORS.length], label: nextLabel() });
+  }
+  selId = null;
+  save(); renderAll();
+}
 
 /* cuts */
 function renderCutSel() {
