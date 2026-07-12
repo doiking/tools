@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0e0e11">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<title>ショットデザイナー — 8hammer</title>
+<style>
+  :root {
+    --bg: #0e0e11;
+    --panel: #1c1c22;
+    --line: #33333c;
+    --fg: #f2f2ee;
+    --dim: #9a9aa4;
+    --accent: #f7c114;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    touch-action: manipulation;
+    overscroll-behavior: none;
+  }
+  button { font-family: inherit; }
+
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    padding: calc(8px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
+    gap: 8px;
+  }
+  #topbar { display: flex; align-items: center; gap: 10px; flex: none; flex-wrap: wrap; }
+  #topbar img { height: 22px; border-radius: 4px; }
+  #topbar h1 { font-size: 16px; font-weight: 700; margin: 0; }
+  #cutName {
+    background: var(--panel); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 9px;
+    font-size: 14px; font-weight: 600; padding: 8px 10px;
+    width: 170px;
+    -webkit-user-select: text; user-select: text;
+  }
+  #cutName:focus { outline: none; border-color: var(--accent); }
+  #topbar select {
+    background: var(--panel); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 9px;
+    font-size: 14px; padding: 8px 8px;
+    max-width: 170px;
+  }
+  #topbar button {
+    background: var(--panel); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 9px;
+    font-size: 13.5px; padding: 8px 11px;
+  }
+  #topbar button.acc { background: var(--accent); color: #17130a; border-color: var(--accent); font-weight: 700; }
+  #topbar button.danger { color: #ff8484; }
+  .spacer { flex: 1; }
+
+  #main { flex: 1; display: flex; gap: 8px; min-height: 0; }
+
+  /* plan view */
+  #planWrap {
+    flex: 1.1; min-width: 0;
+    background: #141419;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  #plan { width: 100%; height: 100%; display: block; touch-action: none; }
+  #planTools {
+    position: absolute; top: 8px; left: 8px;
+    display: flex; gap: 6px;
+  }
+  #planTools button {
+    background: rgba(36,36,44,.95); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 9px;
+    font-size: 13.5px; font-weight: 600; padding: 8px 11px;
+  }
+  #planZoom {
+    position: absolute; bottom: 8px; left: 8px;
+    display: flex; gap: 6px;
+  }
+  #planZoom button {
+    width: 40px; height: 40px;
+    background: rgba(36,36,44,.95); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 9px;
+    font-size: 19px;
+  }
+  #planHint {
+    position: absolute; bottom: 10px; right: 10px;
+    font-size: 11px; color: var(--dim);
+    pointer-events: none;
+    text-align: right;
+  }
+
+  /* camera view + props */
+  #side { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+  #camWrap {
+    background: #000;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+    position: relative;
+    aspect-ratio: 16 / 9;
+    flex: none;
+  }
+  #cam3d { width: 100%; height: 100%; display: block; }
+  #thirds { position: absolute; inset: 0; pointer-events: none; }
+  #camInfo {
+    position: absolute; top: 6px; left: 8px;
+    font-size: 11.5px; color: #ddd;
+    text-shadow: 0 0 5px #000;
+    pointer-events: none;
+  }
+
+  #props {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 10px 12px;
+    overflow-y: auto;
+    min-height: 0;
+  }
+  #props .ptitle { font-size: 12px; letter-spacing: .1em; color: var(--dim); margin-bottom: 8px; }
+  .prow { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .prow label { font-size: 13px; color: var(--dim); width: 74px; flex: none; }
+  .prow input[type=range] { flex: 1; accent-color: var(--accent); height: 30px; }
+  .prow .pval { width: 64px; text-align: right; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .prow .btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .prow .btns button, .prowBtns button {
+    background: #24242c; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 8px;
+    font-size: 13px; padding: 7px 11px;
+  }
+  .prow .btns button.sel { background: var(--accent); color: #17130a; border-color: var(--accent); font-weight: 700; }
+  .colorDot { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; padding: 0; }
+  .colorDot.sel { border-color: #fff; }
+  .prowBtns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .prowBtns button.danger { color: #ff8484; }
+  .prowBtns button.acc { background: var(--accent); color: #17130a; border-color: var(--accent); font-weight: 700; }
+  #noSel { color: var(--dim); font-size: 13.5px; line-height: 1.8; }
+
+  @media (max-width: 780px), (orientation: portrait) {
+    #main { flex-direction: column; }
+    #planWrap { flex: 1; min-height: 200px; }
+    #side { flex: none; }
+    #props { max-height: 200px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <img src="data:image/png;base64,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" alt="8hammer">
+    <h1>ショットデザイナー</h1>
+    <select id="cutSel"></select>
+    <input id="cutName" placeholder="カット名">
+    <button id="newCut">＋新規</button>
+    <button id="dupCut">複製</button>
+    <button id="delCut" class="danger">削除</button>
+    <span class="spacer"></span>
+    <button id="exportPng" class="acc">📷 PNG書き出し</button>
+  </div>
+
+  <div id="main">
+    <div id="planWrap">
+      <canvas id="plan"></canvas>
+      <div id="planTools">
+        <button id="addPerson">＋人物</button>
+        <button id="addCam">＋カメラ</button>
+        <button id="addBox">＋箱</button>
+      </div>
+      <div id="planZoom">
+        <button id="zoomIn">＋</button>
+        <button id="zoomOut">−</button>
+      </div>
+      <div id="planHint">ドラッグ=移動 / 空白ドラッグ=画面移動<br>俯瞰ビュー(1マス=1m)</div>
+    </div>
+
+    <div id="side">
+      <div id="camWrap">
+        <canvas id="cam3d"></canvas>
+        <svg id="thirds" viewBox="0 0 160 90" preserveAspectRatio="none">
+          <line x1="53.3" y1="0" x2="53.3" y2="90" stroke="rgba(255,255,255,.22)" stroke-width="0.4"/>
+          <line x1="106.7" y1="0" x2="106.7" y2="90" stroke="rgba(255,255,255,.22)" stroke-width="0.4"/>
+          <line x1="0" y1="30" x2="160" y2="30" stroke="rgba(255,255,255,.22)" stroke-width="0.4"/>
+          <line x1="0" y1="60" x2="160" y2="60" stroke="rgba(255,255,255,.22)" stroke-width="0.4"/>
+        </svg>
+        <div id="camInfo"></div>
+      </div>
+      <div id="props"><div id="noSel"></div></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from "./vendor/three.module.min.js";
+
+"use strict";
+const LS_KEY = "shot.v1";
+const $ = (id) => document.getElementById(id);
+const PERSON_COLORS = ["#f7c114", "#ff6b5a", "#4aa3ff", "#3ecf6e", "#c07bff", "#ff9a3c"];
+const FF_HALF_H = 18, FF_HALF_V = 10.125; // 35mm判 16:9 (36×20.25mm) の半値
+
+/* ================= data ================= */
+let uid = 0;
+const newId = () => Date.now().toString(36) + (uid++);
+
+function defaultCut(name) {
+  const cam = { id: newId(), type: "camera", x: 0, z: 3, rot: -Math.PI / 2, h: 1.5, fl: 35, tilt: 0 };
+  return {
+    id: newId(), name,
+    objects: [
+      { id: newId(), type: "person", x: 0, z: 0, rot: Math.PI / 2, h: 1.7, pose: "stand", color: PERSON_COLORS[0], label: "A" },
+      cam,
+    ],
+    camId: cam.id,
+  };
+}
+
+let state = { cuts: [], currentId: null };
+try { const raw = localStorage.getItem(LS_KEY); if (raw) state = JSON.parse(raw); } catch (e) {}
+if (!state.cuts || !state.cuts.length) {
+  const c = defaultCut("カット1");
+  state = { cuts: [c], currentId: c.id };
+}
+if (!state.cuts.find(c => c.id === state.currentId)) state.currentId = state.cuts[0].id;
+
+function save() { try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {} }
+function cut() { return state.cuts.find(c => c.id === state.currentId); }
+function objs() { return cut().objects; }
+function activeCam() { return objs().find(o => o.id === cut().camId) || objs().find(o => o.type === "camera"); }
+
+let selId = null;
+function sel() { return objs().find(o => o.id === selId) || null; }
+
+/* ================= plan view (2D canvas) ================= */
+const plan = $("plan");
+const pctx = plan.getContext("2d");
+let view = { cx: 0, cz: 1.2, scale: 60 }; // world center + px per meter
+
+function resizePlan() {
+  const dpr = window.devicePixelRatio || 1;
+  const r = plan.getBoundingClientRect();
+  plan.width = r.width * dpr;
+  plan.height = r.height * dpr;
+  drawPlan();
+}
+function w2s(x, z) { // world → screen (css px)
+  const r = plan.getBoundingClientRect();
+  return [r.width / 2 + (x - view.cx) * view.scale, r.height / 2 + (z - view.cz) * view.scale];
+}
+function s2w(px, py) {
+  const r = plan.getBoundingClientRect();
+  return [(px - r.width / 2) / view.scale + view.cx, (py - r.height / 2) / view.scale + view.cz];
+}
+
+function drawPlan() {
+  const dpr = window.devicePixelRatio || 1;
+  const W = plan.width / dpr, H = plan.height / dpr;
+  pctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  pctx.clearRect(0, 0, W, H);
+
+  // grid (1m)
+  const [x0, z0] = s2w(0, 0), [x1, z1] = s2w(W, H);
+  pctx.lineWidth = 1;
+  for (let gx = Math.floor(x0); gx <= Math.ceil(x1); gx++) {
+    const [sx] = w2s(gx, 0);
+    pctx.strokeStyle = gx === 0 ? "#3c3c48" : "#22222a";
+    pctx.beginPath(); pctx.moveTo(sx, 0); pctx.lineTo(sx, H); pctx.stroke();
+  }
+  for (let gz = Math.floor(z0); gz <= Math.ceil(z1); gz++) {
+    const [, sz] = w2s(0, gz);
+    pctx.strokeStyle = gz === 0 ? "#3c3c48" : "#22222a";
+    pctx.beginPath(); pctx.moveTo(0, sz); pctx.lineTo(W, sz); pctx.stroke();
+  }
+
+  for (const o of objs()) {
+    const [sx, sz] = w2s(o.x, o.z);
+    const isSel = o.id === selId;
+
+    if (o.type === "camera") {
+      const active = o.id === cut().camId;
+      // FOV cone
+      const half = Math.atan(FF_HALF_H / o.fl);
+      const len = 4 * view.scale;
+      pctx.fillStyle = active ? "rgba(247,193,20,.13)" : "rgba(150,150,160,.08)";
+      pctx.beginPath();
+      pctx.moveTo(sx, sz);
+      pctx.lineTo(sx + Math.cos(o.rot - half) * len, sz + Math.sin(o.rot - half) * len);
+      pctx.lineTo(sx + Math.cos(o.rot + half) * len, sz + Math.sin(o.rot + half) * len);
+      pctx.closePath(); pctx.fill();
+      // body
+      pctx.save();
+      pctx.translate(sx, sz); pctx.rotate(o.rot);
+      pctx.fillStyle = active ? "#f7c114" : "#8a8a94";
+      pctx.fillRect(-9, -7, 14, 14);
+      pctx.beginPath();
+      pctx.moveTo(5, -6); pctx.lineTo(13, 0); pctx.lineTo(5, 6);
+      pctx.closePath(); pctx.fill();
+      pctx.restore();
+      if (isSel) ring(sx, sz, 17);
+      tag(sx, sz - 20, (active ? "📷" : "cam") + " " + o.fl + "mm");
+    } else if (o.type === "person") {
+      const r = 0.26 * view.scale;
+      pctx.fillStyle = o.color;
+      pctx.beginPath(); pctx.arc(sx, sz, r, 0, 7); pctx.fill();
+      // facing tick
+      pctx.strokeStyle = "#111"; pctx.lineWidth = 3;
+      pctx.beginPath();
+      pctx.moveTo(sx + Math.cos(o.rot) * r * 0.4, sz + Math.sin(o.rot) * r * 0.4);
+      pctx.lineTo(sx + Math.cos(o.rot) * r * 1.25, sz + Math.sin(o.rot) * r * 1.25);
+      pctx.stroke();
+      pctx.fillStyle = "#111";
+      pctx.font = "bold " + Math.max(11, r * 0.9) + "px sans-serif";
+      pctx.textAlign = "center"; pctx.textBaseline = "middle";
+      pctx.fillText(o.label, sx, sz);
+      if (isSel) ring(sx, sz, r + 5);
+    } else { // box
+      pctx.save();
+      pctx.translate(sx, sz); pctx.rotate(o.rot);
+      const w = o.w * view.scale, d = o.d * view.scale;
+      pctx.fillStyle = "#5a5a66";
+      pctx.strokeStyle = "#787884"; pctx.lineWidth = 1.5;
+      pctx.fillRect(-w / 2, -d / 2, w, d);
+      pctx.strokeRect(-w / 2, -d / 2, w, d);
+      pctx.restore();
+      if (isSel) ring(sx, sz, Math.max(o.w, o.d) * view.scale * 0.72 + 4);
+    }
+  }
+
+  function ring(x, y, r) {
+    pctx.strokeStyle = "#f7c114"; pctx.lineWidth = 2.5;
+    pctx.setLineDash([5, 4]);
+    pctx.beginPath(); pctx.arc(x, y, r, 0, 7); pctx.stroke();
+    pctx.setLineDash([]);
+  }
+  function tag(x, y, text) {
+    pctx.font = "10.5px sans-serif";
+    pctx.textAlign = "center"; pctx.textBaseline = "bottom";
+    pctx.fillStyle = "#bbb";
+    pctx.fillText(text, x, y);
+  }
+}
+
+/* plan interactions */
+let drag = null; // {mode:'obj'|'pan', id, offX, offZ} ; pinch: {mode:'pinch', d0, s0}
+const pointers = new Map();
+
+plan.addEventListener("pointerdown", (e) => {
+  plan.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, e);
+  if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    drag = { mode: "pinch", d0: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), s0: view.scale };
+    return;
+  }
+  const rect = plan.getBoundingClientRect();
+  const [wx, wz] = s2w(e.clientX - rect.left, e.clientY - rect.top);
+  const hit = hitTest(wx, wz);
+  if (hit) {
+    selId = hit.id;
+    drag = { mode: "obj", id: hit.id, offX: hit.x - wx, offZ: hit.z - wz };
+  } else {
+    drag = { mode: "pan", wx, wz };
+  }
+  renderAll();
+});
+plan.addEventListener("pointermove", (e) => {
+  if (!pointers.has(e.pointerId)) return;
+  pointers.set(e.pointerId, e);
+  if (!drag) return;
+  const rect = plan.getBoundingClientRect();
+  if (drag.mode === "pinch" && pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    view.scale = Math.min(220, Math.max(18, drag.s0 * d / drag.d0));
+    drawPlan();
+    return;
+  }
+  const [wx, wz] = s2w(e.clientX - rect.left, e.clientY - rect.top);
+  if (drag.mode === "obj") {
+    const o = objs().find(x => x.id === drag.id);
+    if (o) {
+      o.x = Math.round((wx + drag.offX) * 10) / 10;
+      o.z = Math.round((wz + drag.offZ) * 10) / 10;
+      renderAll(false);
+    }
+  } else if (drag.mode === "pan") {
+    view.cx -= wx - drag.wx;
+    view.cz -= wz - drag.wz;
+    drawPlan();
+  }
+});
+function endPointer(e) {
+  pointers.delete(e.pointerId);
+  if (pointers.size < 2 && drag && drag.mode === "pinch") drag = null;
+  if (pointers.size === 0) { if (drag && drag.mode === "obj") save(); drag = null; }
+}
+plan.addEventListener("pointerup", endPointer);
+plan.addEventListener("pointercancel", endPointer);
+
+function hitTest(wx, wz) {
+  const list = [...objs()].reverse();
+  for (const o of list) {
+    const d = Math.hypot(o.x - wx, o.z - wz);
+    const r = o.type === "person" ? 0.35 : o.type === "camera" ? 0.35 : Math.max(o.w, o.d) * 0.6;
+    if (d <= r) return o;
+  }
+  return null;
+}
+
+$("zoomIn").addEventListener("click", () => { view.scale = Math.min(220, view.scale * 1.3); drawPlan(); });
+$("zoomOut").addEventListener("click", () => { view.scale = Math.max(18, view.scale / 1.3); drawPlan(); });
+
+/* ================= 3D camera view ================= */
+const renderer = new THREE.WebGLRenderer({ canvas: $("cam3d"), antialias: true, preserveDrawingBuffer: true });
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x191921);
+scene.fog = new THREE.Fog(0x191921, 22, 45);
+const cam3 = new THREE.PerspectiveCamera(40, 16 / 9, 0.05, 200);
+
+scene.add(new THREE.HemisphereLight(0xcfd4e8, 0x2a2a30, 1.1));
+const dir = new THREE.DirectionalLight(0xffffff, 1.4);
+dir.position.set(5, 9, 4);
+scene.add(dir);
+
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(80, 80),
+  new THREE.MeshLambertMaterial({ color: 0x26262e })
+);
+ground.rotation.x = -Math.PI / 2;
+scene.add(ground);
+const grid = new THREE.GridHelper(80, 80, 0x4a4a56, 0x32323c);
+grid.position.y = 0.002;
+scene.add(grid);
+
+const meshCache = new Map(); // id → {group, key}
+
+function personKey(o) { return ["p", o.h, o.pose, o.color].join("|"); }
+function buildPerson(o) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshLambertMaterial({ color: o.color });
+  const H = o.pose === "sit" ? o.h * 0.76 : o.h;
+  const headR = 0.105 * (o.h / 1.7);
+  const torsoR = 0.155 * (o.h / 1.7);
+  const torsoLen = Math.max(0.2, H - headR * 2 - torsoR * 2 - 0.06);
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(torsoR, torsoLen, 6, 14), mat);
+  torso.position.y = torsoR + torsoLen / 2 + 0.02;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(headR, 18, 14), mat);
+  head.position.y = H - headR;
+  // nose: shows facing direction
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(headR * 0.32, headR * 0.8, 10),
+    new THREE.MeshLambertMaterial({ color: 0x222222 }));
+  nose.rotation.x = Math.PI / 2;
+  nose.position.set(0, H - headR, headR * 0.95);
+  g.add(torso, head, nose);
+  return g;
+}
+function boxKey(o) { return ["b", o.w, o.d, o.bh].join("|"); }
+function buildBox(o) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(o.w, o.bh, o.d),
+    new THREE.MeshLambertMaterial({ color: 0x6a6a76 }));
+  const g = new THREE.Group();
+  m.position.y = o.bh / 2;
+  g.add(m);
+  return g;
+}
+function camKey(o, active) { return ["c", active].join("|"); }
+function buildCamModel() {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.34),
+    new THREE.MeshLambertMaterial({ color: 0x35353f }));
+  const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.16, 14),
+    new THREE.MeshLambertMaterial({ color: 0x18181d }));
+  lens.rotation.x = Math.PI / 2;
+  lens.position.z = 0.25;
+  const legs = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.32, 1.0, 8, 1, true),
+    new THREE.MeshLambertMaterial({ color: 0x44444e, wireframe: true }));
+  legs.position.y = -0.6;
+  g.add(body, lens, legs);
+  return g;
+}
+
+function syncScene() {
+  const alive = new Set();
+  for (const o of objs()) {
+    const isActiveCam = o.type === "camera" && o.id === cut().camId;
+    if (isActiveCam) continue; // don't render the camera we look through
+    let key, builder;
+    if (o.type === "person") { key = personKey(o); builder = () => buildPerson(o); }
+    else if (o.type === "box") { key = boxKey(o); builder = () => buildBox(o); }
+    else { key = camKey(o, false); builder = buildCamModel; }
+    let entry = meshCache.get(o.id);
+    if (!entry || entry.key !== key) {
+      if (entry) scene.remove(entry.group);
+      entry = { group: builder(), key };
+      scene.add(entry.group);
+      meshCache.set(o.id, entry);
+    }
+    const g = entry.group;
+    g.position.set(o.x, o.type === "camera" ? o.h : 0, o.z);
+    // face along rot: rot=0 → +x
+    g.rotation.y = -o.rot + Math.PI / 2;
+    alive.add(o.id);
+  }
+  for (const [id, entry] of meshCache) {
+    if (!alive.has(id)) { scene.remove(entry.group); meshCache.delete(id); }
+  }
+}
+
+function renderCam() {
+  const c = activeCam();
+  if (!c) { renderer.clear(); $("camInfo").textContent = "カメラがありません(＋カメラで追加)"; return; }
+  syncScene();
+  const fovV = 2 * Math.atan(FF_HALF_V / c.fl) * 180 / Math.PI;
+  cam3.fov = fovV;
+  cam3.aspect = 16 / 9;
+  cam3.updateProjectionMatrix();
+  const tilt = (c.tilt || 0) * Math.PI / 180;
+  cam3.position.set(c.x, c.h, c.z);
+  cam3.lookAt(
+    c.x + Math.cos(c.rot) * Math.cos(tilt),
+    c.h + Math.sin(tilt),
+    c.z + Math.sin(c.rot) * Math.cos(tilt)
+  );
+  const r = $("cam3d").getBoundingClientRect();
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  renderer.setSize(r.width, r.height, false);
+  renderer.render(scene, cam3);
+  $("camInfo").textContent = "📷 " + c.fl + "mm(35mm判 16:9)/ 高さ" + c.h.toFixed(2) + "m / TILT " + (c.tilt || 0) + "°";
+}
+
+/* ================= property panel ================= */
+function slider(labelText, min, max, step, val, unit, onInput) {
+  const row = document.createElement("div");
+  row.className = "prow";
+  const lb = document.createElement("label"); lb.textContent = labelText;
+  const rg = document.createElement("input");
+  rg.type = "range"; rg.min = min; rg.max = max; rg.step = step; rg.value = val;
+  const pv = document.createElement("span"); pv.className = "pval";
+  const show = (v) => pv.textContent = (step < 1 ? (+v).toFixed(step < 0.1 ? 2 : 1) : Math.round(v)) + unit;
+  show(val);
+  rg.addEventListener("input", () => { show(rg.value); onInput(parseFloat(rg.value)); });
+  rg.addEventListener("change", save);
+  row.append(lb, rg, pv);
+  return row;
+}
+
+function renderProps() {
+  const box = $("props");
+  box.textContent = "";
+  const o = sel();
+  const title = document.createElement("div");
+  title.className = "ptitle";
+  if (!o) {
+    title.textContent = "プロパティ";
+    const p = document.createElement("div");
+    p.id = "noSel";
+    p.textContent = "俯瞰ビューで人物・カメラ・箱をタップすると、ここで回転・高さ・レンズなどを調整できます。ドラッグで位置を移動。";
+    box.append(title, p);
+    return;
+  }
+
+  if (o.type === "person") {
+    title.textContent = "人物 " + o.label;
+    box.appendChild(title);
+    // colors
+    const crow = document.createElement("div");
+    crow.className = "prow";
+    const clb = document.createElement("label"); clb.textContent = "カラー";
+    const cbtns = document.createElement("div"); cbtns.className = "btns";
+    for (const c of PERSON_COLORS) {
+      const b = document.createElement("button");
+      b.className = "colorDot" + (o.color === c ? " sel" : "");
+      b.style.background = c;
+      b.addEventListener("click", () => { o.color = c; save(); renderAll(); });
+      cbtns.appendChild(b);
+    }
+    crow.append(clb, cbtns);
+    box.appendChild(crow);
+    // pose
+    const prow = document.createElement("div");
+    prow.className = "prow";
+    const plb = document.createElement("label"); plb.textContent = "ポーズ";
+    const pbtns = document.createElement("div"); pbtns.className = "btns";
+    for (const [k, n] of [["stand", "立ち"], ["sit", "座り"]]) {
+      const b = document.createElement("button");
+      b.textContent = n;
+      if (o.pose === k) b.classList.add("sel");
+      b.addEventListener("click", () => { o.pose = k; save(); renderAll(); });
+      pbtns.appendChild(b);
+    }
+    prow.append(plb, pbtns);
+    box.appendChild(prow);
+    box.appendChild(slider("身長", 1.2, 2.0, 0.01, o.h, "m", v => { o.h = v; renderAll(false); }));
+    box.appendChild(slider("向き", -180, 180, 1, o.rot * 180 / Math.PI, "°", v => { o.rot = v * Math.PI / 180; renderAll(false); }));
+  } else if (o.type === "camera") {
+    title.textContent = "カメラ" + (o.id === cut().camId ? "(表示中)" : "");
+    box.appendChild(title);
+    box.appendChild(slider("焦点距離", 12, 200, 1, o.fl, "mm", v => { o.fl = v; renderAll(false); }));
+    box.appendChild(slider("高さ", 0.2, 3.5, 0.05, o.h, "m", v => { o.h = v; renderAll(false); }));
+    box.appendChild(slider("パン(向き)", -180, 180, 1, o.rot * 180 / Math.PI, "°", v => { o.rot = v * Math.PI / 180; renderAll(false); }));
+    box.appendChild(slider("チルト", -45, 45, 1, o.tilt || 0, "°", v => { o.tilt = v; renderAll(false); }));
+  } else {
+    title.textContent = "箱・小道具";
+    box.appendChild(title);
+    box.appendChild(slider("幅", 0.2, 4, 0.1, o.w, "m", v => { o.w = v; renderAll(false); }));
+    box.appendChild(slider("奥行", 0.2, 4, 0.1, o.d, "m", v => { o.d = v; renderAll(false); }));
+    box.appendChild(slider("高さ", 0.1, 3, 0.05, o.bh, "m", v => { o.bh = v; renderAll(false); }));
+    box.appendChild(slider("向き", -180, 180, 1, o.rot * 180 / Math.PI, "°", v => { o.rot = v * Math.PI / 180; renderAll(false); }));
+  }
+
+  const btns = document.createElement("div");
+  btns.className = "prowBtns";
+  if (o.type === "camera") {
+    if (o.id !== cut().camId) {
+      const useBtn = document.createElement("button");
+      useBtn.className = "acc";
+      useBtn.textContent = "このカメラで見る";
+      useBtn.addEventListener("click", () => { cut().camId = o.id; save(); renderAll(); });
+      btns.appendChild(useBtn);
+    }
+    const aimBtn = document.createElement("button");
+    aimBtn.textContent = "近くの人物に向ける";
+    aimBtn.addEventListener("click", () => {
+      const people = objs().filter(x => x.type === "person");
+      if (!people.length) return;
+      let best = people[0], bd = 1e9;
+      for (const p of people) {
+        const d = Math.hypot(p.x - o.x, p.z - o.z);
+        if (d < bd) { bd = d; best = p; }
+      }
+      o.rot = Math.atan2(best.z - o.z, best.x - o.x);
+      const eyeY = (best.pose === "sit" ? best.h * 0.76 : best.h) * 0.9;
+      o.tilt = Math.round(Math.atan2(eyeY * 0.75 - o.h, bd) * 180 / Math.PI);
+      save(); renderAll();
+    });
+    btns.appendChild(aimBtn);
+  }
+  const dup = document.createElement("button");
+  dup.textContent = "複製";
+  dup.addEventListener("click", () => {
+    const c = JSON.parse(JSON.stringify(o));
+    c.id = newId();
+    c.x += 0.6;
+    if (c.type === "person") c.label = nextLabel();
+    objs().push(c);
+    selId = c.id;
+    save(); renderAll();
+  });
+  const del = document.createElement("button");
+  del.className = "danger";
+  del.textContent = "削除";
+  del.addEventListener("click", () => {
+    cut().objects = objs().filter(x => x.id !== o.id);
+    if (o.type === "camera" && cut().camId === o.id) {
+      const c2 = objs().find(x => x.type === "camera");
+      cut().camId = c2 ? c2.id : null;
+    }
+    selId = null;
+    save(); renderAll();
+  });
+  btns.append(dup, del);
+  box.appendChild(btns);
+}
+
+/* ================= toolbar ================= */
+function nextLabel() {
+  const used = new Set(objs().filter(o => o.type === "person").map(o => o.label));
+  for (const ch of "ABCDEFGHJKLMNP") if (!used.has(ch)) return ch;
+  return "?";
+}
+$("addPerson").addEventListener("click", () => {
+  const i = objs().filter(o => o.type === "person").length;
+  const o = { id: newId(), type: "person", x: view.cx + (i % 3 - 1) * 0.8, z: view.cz, rot: Math.PI / 2,
+    h: 1.7, pose: "stand", color: PERSON_COLORS[i % PERSON_COLORS.length], label: nextLabel() };
+  objs().push(o); selId = o.id;
+  save(); renderAll();
+});
+$("addCam").addEventListener("click", () => {
+  const o = { id: newId(), type: "camera", x: view.cx, z: view.cz + 2.5, rot: -Math.PI / 2, h: 1.5, fl: 35, tilt: 0 };
+  objs().push(o);
+  if (!activeCam()) cut().camId = o.id;
+  selId = o.id;
+  save(); renderAll();
+});
+$("addBox").addEventListener("click", () => {
+  const o = { id: newId(), type: "box", x: view.cx + 1, z: view.cz, rot: 0, w: 1.2, d: 0.6, bh: 0.7 };
+  objs().push(o); selId = o.id;
+  save(); renderAll();
+});
+
+/* cuts */
+function renderCutSel() {
+  const s = $("cutSel");
+  s.textContent = "";
+  for (const c of state.cuts) {
+    const op = document.createElement("option");
+    op.value = c.id; op.textContent = c.name || "(無題)";
+    if (c.id === state.currentId) op.selected = true;
+    s.appendChild(op);
+  }
+  $("cutName").value = cut().name;
+}
+$("cutSel").addEventListener("change", () => {
+  state.currentId = $("cutSel").value;
+  selId = null;
+  save(); renderAll(); renderCutSel();
+});
+$("cutName").addEventListener("input", () => {
+  cut().name = $("cutName").value;
+  save(); renderCutSel();
+});
+$("newCut").addEventListener("click", () => {
+  const c = defaultCut("カット" + (state.cuts.length + 1));
+  state.cuts.push(c); state.currentId = c.id; selId = null;
+  save(); renderAll(); renderCutSel();
+});
+$("dupCut").addEventListener("click", () => {
+  const c = JSON.parse(JSON.stringify(cut()));
+  c.id = newId();
+  c.name = cut().name + " のコピー";
+  // remap object ids
+  for (const o of c.objects) {
+    const nid = newId();
+    if (c.camId === o.id) c.camId = nid;
+    o.id = nid;
+  }
+  state.cuts.push(c); state.currentId = c.id; selId = null;
+  save(); renderAll(); renderCutSel();
+});
+$("delCut").addEventListener("click", () => {
+  if (!confirm("「" + (cut().name || "(無題)") + "」を削除しますか?")) return;
+  state.cuts = state.cuts.filter(c => c.id !== state.currentId);
+  if (!state.cuts.length) state.cuts = [defaultCut("カット1")];
+  state.currentId = state.cuts[0].id;
+  selId = null;
+  save(); renderAll(); renderCutSel();
+});
+
+$("exportPng").addEventListener("click", () => {
+  renderCam(); // ensure fresh frame
+  const a = document.createElement("a");
+  a.href = $("cam3d").toDataURL("image/png");
+  a.download = (cut().name || "shot").replace(/[\\/:*?"<>|\s]+/g, "_") + ".png";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+});
+
+/* ================= glue ================= */
+let lastProps = null;
+function renderAll(withProps = true) {
+  drawPlan();
+  renderCam();
+  if (withProps || lastProps !== selId) { renderProps(); lastProps = selId; }
+}
+
+window.addEventListener("resize", () => { resizePlan(); renderCam(); });
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+
+resizePlan();
+renderCutSel();
+renderAll();
+</script>
+</body>
+</html>
