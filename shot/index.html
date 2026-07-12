@@ -179,6 +179,17 @@
     #side { flex: none; }
     #props { max-height: 200px; }
   }
+  /* phones: compact toolbar (2 rows max) */
+  @media (max-width: 600px) {
+    #topbar { gap: 6px; }
+    #topbar h1 { display: none; }
+    #topbar select { max-width: 108px; font-size: 13px; padding: 8px 4px; }
+    #cutName { width: 0; flex: 1; min-width: 80px; font-size: 13px; }
+    #topbar button { font-size: 12.5px; padding: 8px 8px; }
+    #planTools button { font-size: 12.5px; padding: 7px 9px; }
+    #planHint { display: none; }
+    #props { max-height: 240px; }
+  }
 </style>
 </head>
 <body>

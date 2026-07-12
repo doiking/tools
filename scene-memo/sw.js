@@ -1,5 +1,5 @@
 /* Scene Memo service worker: cache-first so the app works offline on set. */
-const CACHE = "scene-memo-v2";
+const CACHE = "scene-memo-v3";
 const ASSETS = [
   "./",
   "./index.html",

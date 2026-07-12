@@ -334,6 +334,20 @@
     #counters { min-height: 150px; }
     #side { min-width: 0; flex: 1; }
   }
+  /* phones: shrink counters so SCENE/CUT/TAKE all fit */
+  @media (max-width: 500px) {
+    #boardBody { padding: 10px 12px 12px; }
+    #counters { gap: 6px; }
+    .counter { padding: 6px 2px; }
+    .stepper { gap: 6px; }
+    .stepper button { width: 44px; height: 40px; font-size: 21px; }
+    .field input { font-size: 17px; }
+    #production { font-size: 21px; }
+    #clock { font-size: 15px; padding-top: 6px; }
+    #boardActions .adv { font-size: 14px; height: 48px; }
+    #clapBtn { font-size: 18px; height: 48px; }
+    #toolbar button { font-size: 13px; }
+  }
 </style>
 </head>
 <body>
