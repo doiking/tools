@@ -187,10 +187,13 @@
     body { background: #fff; color: #000; padding: 0; }
     #topbar, #grid, #addCard, #toast { display: none !important; }
     #printView { display: block; }
-    #printView h1 {
-      font-size: 16pt; margin: 0 0 4mm;
-      border-bottom: 2px solid #000; padding-bottom: 2mm;
+    #printView .phead {
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 2px solid #000;
+      padding-bottom: 2mm; margin-bottom: 4mm;
     }
+    #printView h1 { font-size: 16pt; margin: 0; }
+    #printView .plogo { height: 8mm; }
     #printView .meta { font-size: 9pt; color: #444; margin-bottom: 4mm; }
     #printView table { width: 100%; border-collapse: collapse; }
     #printView th, #printView td {
@@ -236,6 +239,7 @@
 <script>
 "use strict";
 const LS_KEY = "storyboard.v1";
+const PRINT_LOGO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAYAAAABICAAAAADaYH0OAAAFO0lEQVR42u2c69mkKgyAbYAGbIAC0oAV0IANpAEboAEaoAEaoD3PeBlNuDhznl381t3k14yMyOSVkIRo14mIiIj8qMwiPyQCQAAIAAEgAARAW/ETGlgF0UXR+q0AwqgTl6s3QRR/FwCri24veFH9HQB8X408RtF9ewDjVeynRfmtAejr6HsQ7bcFQPSvBpy8Q8MtkhX1twRgTvXjuSgA9YZE/Q0BuFP/ocyl65zovx2A09okHudwAkDRfzMA5wSApCV21SYB0MIDzZbaQQDcAABqFmiesQTArSZLjQLgN4mqb7b5UjSM/2pattX/7uozwJWskwMB0AiArZsglpi2AqBNGDxUF+GhMBQB8Nvj4C7WJocXAO0A2Kq3j7WEdC8A2kTCnaHHQzUdDQKg0RRgBN6Lg5oFQFMAM817Qkz134c6AIcv4c6T97iKZ8e8t+sBT06Idvly9h6Wn2HW4vNrLL8YAcBMx2jjcvL2NUyI06MAUCN0ZKT1xXbYBsC9nST1zpUGYNs4kaWUcI5GnVnXYwsa+IpDWl7TMY7vUyiCaNIbxr6dhbBf41kAgmKlEJZsEY/VKUOVHdO4gWW3956Iu6Vcn+237SfTzWlDOzynlKPDVZGEjHZouIHRMgMQ+Z6kyu7tss3qgWPalm0NoJlq/RFPKEpNa47vhKIJBAUqiUX8Dgc1mUGO/wPzMAAs9/+5HgJOEzMxOwXvrQPPDcGmUOXJLFnO3rlbnvkgLZ2ajmsomrzaFqbN8ARq6BQG3K/0LAB8Xn/YCQZyRxo6qgCA9Db1FO9mLHbUA8kEIvuLA9WnJ9Zp/9FIOl4vPpGuVqvn25QyNU9CmrwexV4A8NTsVBZ2TxdYQ+/zQMhwALRFFxoUOe5Jv9DK9NwGIBaKU3pbBfAhL2EyAFPhBMwB0JYxp2mzM4AMyj0YgFXFmqDefwBQyUtgBsAX1OyrABxtIVPOMOOYAgjPBWBS3+SiLIsBqITFtgpAVwFArYUAWD9Ofo3tEFIA81MBRBr8YFInmsXClwBekesAuydaBAC/BKDqqz0awBGJ7f/Y9sWI6jOAwN3ZOwDsztWjARz6Px1/jkDF7wDYRDmtAGwmaJPbMoTtABz6Z04cK5iGrwCsC2c/+fhyxceWAPwn1+xZAPpy3o25RfYbAD0JWH1LAPhXAYBaVQTN0cEXAAKdRf8DAJQ82ksvaPibANh6Ast15f3iCgCmszwOsB8BdF8AMDUtPDYOUNWyIJadoDGmzgD4NDHA0jQ84O1/CYCt2SCoLQ5/OICpq+48svJcTIdSAaBoMg5LALrvAYwF5W43zLHlZXV4NoD+8jkk/SWA6cTVW++d4cv6NQBVTUXAnCfa9jtG47IHuex/mUcDCNePAJi82SXISKUi5FFSoBQXTMh8Xn9+PvpVjHwkHYdi1nYZBtlHm54FwF4DwPx/pSXTw7mCELept/g+zBkDOzucn5EWCQceyyFbpZIgMVBD2vBZkjYA8HrgQ74l62GXYVuXA+Lr885ne7gPxkUpS0Zo9XyG/YT1sfuJn72+GcEsnbt3v6vhZ19ew1zyS+cI3QjbhQC3biIco/JPBQDXa8D8z0trAN2lFySPCrcHgF9ZIAHQahEubMJbeUasOYB4UQYx1dLRAqBFKm690UnCwYG8quAOAD6JnAbEpb52UPKqiJuSceOnN5Uq0X9TAIWCLF6dJW8tawwgLWrmt7+8JaI9gKSunxakiPpvAfDyRqe8LlGPYnxuA7D6QxZHeL8z1EroezsAEQEgAEQEwJ8OQEREROSH5D97DPqMxRdoIAAAAABJRU5ErkJggg=="; // 白黒ロゴ(印刷用)
 const INBOX_KEY = "storyboard.inbox.v1";
 const $ = (id) => document.getElementById(id);
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -515,8 +519,15 @@ $("jsonFileIn").addEventListener("change", async () => {
 $("printBtn").addEventListener("click", () => {
   const pv = $("printView");
   pv.textContent = "";
+  const phead = document.createElement("div");
+  phead.className = "phead";
   const h1 = document.createElement("h1");
   h1.textContent = "絵コンテ — " + (board().title || "(無題)");
+  const plogo = document.createElement("img");
+  plogo.className = "plogo";
+  plogo.alt = "8hammer";
+  plogo.src = PRINT_LOGO;
+  phead.append(h1, plogo);
   const meta = document.createElement("div");
   meta.className = "meta";
   const total = board().cuts.reduce((a, c) => a + (parseFloat(c.sec) || 0), 0);
@@ -541,7 +552,7 @@ $("printBtn").addEventListener("click", () => {
     tr.append(td1, td2, td3, td4, td5);
     tbl.appendChild(tr);
   });
-  pv.append(h1, meta, tbl);
+  pv.append(phead, meta, tbl);
   window.print();
 });
 
