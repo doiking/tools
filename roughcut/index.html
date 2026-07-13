@@ -99,6 +99,20 @@
   .seg .no { color: var(--accent); font-weight: 800; }
   .seg .play { border: none; background: transparent; color: var(--dim); font-size: 12px; padding: 0 2px; }
 
+  #clipList { display: flex; flex-wrap: wrap; gap: 6px; }
+  .clip {
+    display: flex; align-items: center; gap: 7px;
+    background: #24242c;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+  .clip.act { border-color: var(--accent); color: var(--accent); }
+  .clip .ct { color: var(--dim); font-size: 11px; }
+  .clip .x { border: none; background: transparent; color: var(--dim); font-size: 12px; padding: 0 2px; cursor: pointer; }
+
   #exportRow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   #seqName { flex: 1; min-width: 160px; }
   #exportRow button {
@@ -151,11 +165,11 @@
   </div>
 
   <div id="drop">
-    <b>動画・音声ファイルをここにドロップ</b>(タップで選択)<br>
+    <b>動画・音声ファイルをここにドロップ</b>(10〜20素材まとめてOK・タップで選択)<br>
     音声を解析して無音を自動カット → Premiere用XMLを書き出します。ファイルは端末外に送信されません。
     <div id="fileInfo"></div>
   </div>
-  <input type="file" id="fileIn" accept="video/*,audio/*" hidden>
+  <input type="file" id="fileIn" accept="video/*,audio/*" multiple hidden>
 
   <div class="panel" id="paramPanel" hidden>
     <div class="ptitle">無音カットの設定(変えると即再計算)</div>
@@ -168,7 +182,9 @@
   </div>
 
   <div class="panel" id="wavePanel" hidden>
-    <div class="ptitle">波形(タップでセグメントの有効/無効を切替、▶で試聴)</div>
+    <div class="ptitle">素材(タップで波形を切替、✕で外す)</div>
+    <div id="clipList"></div>
+    <div class="ptitle" style="margin-top:10px">波形(タップでセグメントの有効/無効を切替、▶で試聴)</div>
     <canvas id="wave"></canvas>
     <div id="stats"></div>
     <div id="segList"></div>
@@ -193,7 +209,9 @@
       <button id="expCsv">CSV</button>
     </div>
     <div class="note" style="margin-top:8px">
-      Premiereで「ファイル → 読み込み」でXMLを選択 → 開いたシーケンスのクリップを右クリック「メディアをリンク」で元ファイルに接続してください。
+      全素材の採用クリップが1本のシーケンスに順番に並びます。
+      Premiereで「ファイル → 読み込み」でXMLを選択 → クリップを右クリック「メディアをリンク」で元ファイルに接続
+      (同じフォルダにあれば最初の1本を指定するだけで残りは自動で見つかります)。
       素材のfpsと書き出しfpsを合わせると尺がズレません。
     </div>
 
@@ -215,6 +233,7 @@
       </div>
       <div id="aiStatus"></div>
       <div class="note" style="margin-top:6px">
+        AI選抜は波形に表示中の素材(1本)に適用されます。
         APIキーは console.anthropic.com で発行し、各自のキーを使用してください(localStorageに保存されます。共有PCでは注意)。
         文字起こしテキストのみが送信され、映像・音声ファイルは送信されません。
       </div>
@@ -237,12 +256,8 @@ let pref = { th: -40, sil: 0.4, pad: 0.08, min: 0.3, fps: "29.97", aiKey: "", ai
 try { Object.assign(pref, JSON.parse(localStorage.getItem(LS_KEY) || "{}")); } catch (e) {}
 function savePref() { try { localStorage.setItem(LS_KEY, JSON.stringify(pref)); } catch (e) {} }
 
-let fileName = null;
-let audioBuf = null;      // AudioBuffer
-let rmsDb = null;         // Float32Array of frame levels
-let hopDur = 0;
-let segs = [];            // [{s, e, on}]
-let duration = 0;
+let clips = [];  // [{name, buf, duration, rmsDb, hopDur, segs:[{s,e,on}]}]
+let cur = -1;    // 波形表示中の素材index
 
 function toast(msg) {
   const t = $("toast");
@@ -260,44 +275,63 @@ drop.addEventListener("dragleave", () => drop.classList.remove("over"));
 drop.addEventListener("drop", (e) => {
   e.preventDefault();
   drop.classList.remove("over");
-  if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+  if (e.dataTransfer.files.length) loadFiles(e.dataTransfer.files);
 });
 $("fileIn").addEventListener("change", () => {
-  if ($("fileIn").files[0]) loadFile($("fileIn").files[0]);
+  if ($("fileIn").files.length) loadFiles($("fileIn").files);
 });
 
-async function loadFile(f) {
-  fileName = f.name;
-  $("fileInfo").textContent = "解析中… " + f.name + "(" + (f.size / 1048576).toFixed(1) + "MB)";
-  try {
-    const ab = await f.arrayBuffer();
-    const ac = new (window.AudioContext || window.webkitAudioContext)();
-    audioBuf = await ac.decodeAudioData(ab);
-    ac.close && ac.close();
-    duration = audioBuf.duration;
-    computeRms();
-    detect();
-    $("paramPanel").hidden = false;
-    $("wavePanel").hidden = false;
-    $("exportPanel").hidden = false;
-    $("seqName").value = f.name.replace(/\.[^.]+$/, "") + "_roughcut";
-    $("fileInfo").textContent = f.name + " ・ " + fmtT(duration) + " ・ " +
-      audioBuf.sampleRate + "Hz " + audioBuf.numberOfChannels + "ch";
-    renderAll();
-  } catch (err) {
-    $("fileInfo").textContent = "読み込めませんでした(このブラウザで再生できる形式の音声トラックが必要です): " + err.message;
-    audioBuf = null;
+async function loadFiles(fileList) {
+  // カメラの連番どおりに並ぶよう名前順(数値対応)で処理
+  const files = [...fileList].sort((a, b) => a.name.localeCompare(b.name, "ja", { numeric: true }));
+  if (!files.length) return;
+  const failed = [];
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    $("fileInfo").textContent = "解析中… " + (i + 1) + "/" + files.length + " " + f.name +
+      "(" + (f.size / 1048576).toFixed(1) + "MB)";
+    await new Promise((r) => setTimeout(r, 0)); // 進捗を描画させる
+    try {
+      const ab = await f.arrayBuffer();
+      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      const buf = await ac.decodeAudioData(ab);
+      ac.close && ac.close();
+      const c = { name: f.name, buf, duration: buf.duration, rmsDb: null, hopDur: 0, segs: [] };
+      computeRms(c);
+      detectClip(c);
+      clips.push(c);
+    } catch (err) {
+      failed.push(f.name);
+    }
   }
+  if (!clips.length) {
+    $("fileInfo").textContent = "読み込めませんでした(このブラウザで再生できる形式の音声トラックが必要です): " + failed.join(", ");
+    return;
+  }
+  if (cur < 0) cur = 0;
+  $("paramPanel").hidden = false;
+  $("wavePanel").hidden = false;
+  $("exportPanel").hidden = false;
+  if (clips.length === 1) $("seqName").value = clips[0].name.replace(/\.[^.]+$/, "") + "_roughcut";
+  updateFileInfo(failed);
+  renderAll();
 }
 
-function computeRms() {
+function updateFileInfo(failed) {
+  const total = clips.reduce((a, c) => a + c.duration, 0);
+  $("fileInfo").textContent =
+    (clips.length === 1 ? clips[0].name : clips.length + "素材") + " ・ 合計 " + fmtT(total) +
+    (failed && failed.length ? " ・ 読込失敗: " + failed.join(", ") : "");
+}
+
+function computeRms(c) {
   const hop = 1024;
-  const sr = audioBuf.sampleRate;
-  hopDur = hop / sr;
-  const n = Math.floor(audioBuf.length / hop);
-  rmsDb = new Float32Array(n);
+  const buf = c.buf;
+  c.hopDur = hop / buf.sampleRate;
+  const n = Math.floor(buf.length / hop);
+  c.rmsDb = new Float32Array(n);
   const chs = [];
-  for (let c = 0; c < audioBuf.numberOfChannels; c++) chs.push(audioBuf.getChannelData(c));
+  for (let ch = 0; ch < buf.numberOfChannels; ch++) chs.push(buf.getChannelData(ch));
   for (let i = 0; i < n; i++) {
     let sum = 0;
     const off = i * hop;
@@ -308,28 +342,28 @@ function computeRms() {
       sum += v * v;
     }
     const rms = Math.sqrt(sum / (hop / 4));
-    rmsDb[i] = 20 * Math.log10(rms + 1e-8);
+    c.rmsDb[i] = 20 * Math.log10(rms + 1e-8);
   }
 }
 
-function detect() {
+function detectClip(c) {
   const th = pref.th, minSil = pref.sil, pad = pref.pad, minClip = pref.min;
-  const n = rmsDb.length;
+  const n = c.rmsDb.length;
   // 1) 発話フレーム
   const loud = new Uint8Array(n);
-  for (let i = 0; i < n; i++) loud[i] = rmsDb[i] > th ? 1 : 0;
+  for (let i = 0; i < n; i++) loud[i] = c.rmsDb[i] > th ? 1 : 0;
   // 2) 発話領域を抽出し前後にパディング
   const raw = [];
   let start = -1;
   for (let i = 0; i <= n; i++) {
     const v = i < n ? loud[i] : 0;
     if (v && start < 0) start = i;
-    if (!v && start >= 0) { raw.push([start * hopDur - pad, i * hopDur + pad]); start = -1; }
+    if (!v && start >= 0) { raw.push([start * c.hopDur - pad, i * c.hopDur + pad]); start = -1; }
   }
   // 3) 間隔がminSil未満なら結合
   const merged = [];
   for (const r of raw) {
-    const s = Math.max(0, r[0]), e = Math.min(duration, r[1]);
+    const s = Math.max(0, r[0]), e = Math.min(c.duration, r[1]);
     if (merged.length && s - merged[merged.length - 1][1] < minSil) {
       merged[merged.length - 1][1] = e;
     } else {
@@ -337,7 +371,7 @@ function detect() {
     }
   }
   // 4) 短すぎるクリップを除外
-  segs = merged.filter(r => r[1] - r[0] >= minClip).map(r => ({ s: r[0], e: r[1], on: true }));
+  c.segs = merged.filter(r => r[1] - r[0] >= minClip).map(r => ({ s: r[0], e: r[1], on: true }));
 }
 
 /* ---------- params ---------- */
@@ -354,7 +388,7 @@ for (const [rid, vid, key, fmt] of paramDefs) {
     pref[key] = parseFloat($(rid).value);
     $(vid).textContent = fmt($(rid).value);
     savePref();
-    if (rmsDb) { detect(); renderAll(); }
+    if (clips.length) { clips.forEach(detectClip); renderAll(); }
   });
 }
 $("fpsSel").value = pref.fps;
@@ -367,12 +401,50 @@ function fmtT(t) {
 }
 
 function renderAll() {
+  renderClips();
   drawWave();
-  const kept = segs.filter(x => x.on);
-  const keptDur = kept.reduce((a, x) => a + (x.e - x.s), 0);
-  $("stats").innerHTML = "元尺 " + fmtT(duration) + " → 編集後 <b>" + fmtT(keptDur) + "</b>" +
-    "(−" + fmtT(Math.max(0, duration - keptDur)) + " カット)・ <b>" + kept.length + "</b> クリップ";
+  let total = 0, keptDur = 0, keptN = 0;
+  for (const c of clips) {
+    total += c.duration;
+    for (const g of c.segs) if (g.on) { keptDur += g.e - g.s; keptN++; }
+  }
+  $("stats").innerHTML = (clips.length > 1 ? clips.length + "素材 ・ " : "") +
+    "元尺 " + fmtT(total) + " → 編集後 <b>" + fmtT(keptDur) + "</b>" +
+    "(−" + fmtT(Math.max(0, total - keptDur)) + " カット)・ <b>" + keptN + "</b> クリップ";
   renderSegs();
+}
+
+function renderClips() {
+  const box = $("clipList");
+  box.textContent = "";
+  clips.forEach((c, i) => {
+    const el = document.createElement("div");
+    el.className = "clip" + (i === cur ? " act" : "");
+    const nm = document.createElement("span");
+    nm.textContent = c.name.length > 24 ? c.name.slice(0, 12) + "…" + c.name.slice(-9) : c.name;
+    const ct = document.createElement("span");
+    ct.className = "ct";
+    ct.textContent = c.segs.filter(g => g.on).length + "clip";
+    const x = document.createElement("button");
+    x.className = "x";
+    x.textContent = "✕";
+    x.title = "この素材を外す";
+    x.addEventListener("click", (e) => {
+      e.stopPropagation();
+      clips.splice(i, 1);
+      if (cur >= clips.length) cur = clips.length - 1;
+      if (!clips.length) {
+        $("paramPanel").hidden = $("wavePanel").hidden = $("exportPanel").hidden = true;
+        $("fileInfo").textContent = "";
+        return;
+      }
+      updateFileInfo();
+      renderAll();
+    });
+    el.append(nm, ct, x);
+    el.addEventListener("click", () => { cur = i; renderAll(); });
+    box.appendChild(el);
+  });
 }
 
 function drawWave() {
@@ -382,22 +454,22 @@ function drawWave() {
   cv.width = W; cv.height = H;
   const ctx = cv.getContext("2d");
   ctx.clearRect(0, 0, W, H);
-  if (!rmsDb) return;
+  const c = clips[cur];
+  if (!c) return;
   // kept regions background
-  for (const g of segs) {
+  for (const g of c.segs) {
     ctx.fillStyle = g.on ? "rgba(247,193,20,.14)" : "rgba(255,90,90,.07)";
-    ctx.fillRect(g.s / duration * W, 0, (g.e - g.s) / duration * W, H);
+    ctx.fillRect(g.s / c.duration * W, 0, (g.e - g.s) / c.duration * W, H);
   }
   // waveform columns
-  const n = rmsDb.length;
-  ctx.fillStyle = "#8a8a94";
+  const n = c.rmsDb.length;
   for (let x = 0; x < W; x += 2 * dpr) {
     const i0 = Math.floor(x / W * n), i1 = Math.max(i0 + 1, Math.floor((x + 2 * dpr) / W * n));
     let mx = -80;
-    for (let i = i0; i < i1 && i < n; i++) mx = Math.max(mx, rmsDb[i]);
+    for (let i = i0; i < i1 && i < n; i++) mx = Math.max(mx, c.rmsDb[i]);
     const h = Math.max(1, (mx + 60) / 60 * H * 0.9);
-    const t = (x / W) * duration;
-    const inKeep = segs.some(g => g.on && t >= g.s && t <= g.e);
+    const t = (x / W) * c.duration;
+    const inKeep = c.segs.some(g => g.on && t >= g.s && t <= g.e);
     ctx.fillStyle = inKeep ? "#f7c114" : "#4a4a54";
     ctx.fillRect(x, (H - h) / 2, 1.4 * dpr, h);
   }
@@ -410,19 +482,21 @@ function drawWave() {
 }
 
 $("wave").addEventListener("click", (e) => {
-  if (!segs.length) return;
+  const c = clips[cur];
+  if (!c || !c.segs.length) return;
   const r = $("wave").getBoundingClientRect();
-  const t = (e.clientX - r.left) / r.width * duration;
-  const g = segs.find(x => t >= x.s && t <= x.e);
+  const t = (e.clientX - r.left) / r.width * c.duration;
+  const g = c.segs.find(x => t >= x.s && t <= x.e);
   if (g) { g.on = !g.on; renderAll(); }
 });
 
 let playSrc = null, playCtx = null;
 function playSeg(g) {
+  if (!clips[cur]) return;
   stopPlay();
   playCtx = new (window.AudioContext || window.webkitAudioContext)();
   playSrc = playCtx.createBufferSource();
-  playSrc.buffer = audioBuf;
+  playSrc.buffer = clips[cur].buf;
   playSrc.connect(playCtx.destination);
   playSrc.start(0, g.s, Math.min(g.e - g.s, 15));
   playSrc.onended = stopPlay;
@@ -435,7 +509,9 @@ function stopPlay() {
 function renderSegs() {
   const box = $("segList");
   box.textContent = "";
-  segs.forEach((g, i) => {
+  const c = clips[cur];
+  if (!c) return;
+  c.segs.forEach((g, i) => {
     const el = document.createElement("div");
     el.className = "seg" + (g.on ? "" : " off");
     const no = document.createElement("span");
@@ -480,31 +556,39 @@ function download(name, text, mime) {
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
 }
 
+function keptAll() {
+  // 素材ごとの採用セグメント(空の素材は除外)
+  return clips.map(c => ({ c, kept: c.segs.filter(g => g.on) })).filter(x => x.kept.length);
+}
+
 function buildXml() {
   const { rate, tb, ntsc } = fpsInfo();
-  const kept = segs.filter(x => x.on);
   const name = $("seqName").value || "roughcut";
-  const fn = esc(fileName || "source");
   const rateXml = "<rate><timebase>" + tb + "</timebase><ntsc>" + ntsc + "</ntsc></rate>";
-  let tl = 0;
+  let tl = 0, ci = 0;
   const vItems = [], aItems = [];
-  kept.forEach((g, i) => {
-    const inF = Math.round(g.s * rate), outF = Math.round(g.e * rate);
-    const dur = outF - inF;
-    const start = tl, end = tl + dur;
-    tl = end;
-    const fileRef = i === 0
-      ? '<file id="f1"><name>' + fn + '</name><pathurl>file://localhost/' + encodeURIComponent(fileName || "source") + "</pathurl>" + rateXml +
-        "<media><video/><audio><channelcount>2</channelcount></audio></media></file>"
-      : '<file id="f1"/>';
-    vItems.push(
-      '<clipitem id="v' + (i + 1) + '"><name>' + fn + "</name>" + rateXml +
-      "<start>" + start + "</start><end>" + end + "</end><in>" + inF + "</in><out>" + outF + "</out>" +
-      fileRef + "</clipitem>");
-    aItems.push(
-      '<clipitem id="a' + (i + 1) + '"><name>' + fn + "</name>" + rateXml +
-      "<start>" + start + "</start><end>" + end + "</end><in>" + inF + "</in><out>" + outF + "</out>" +
-      '<file id="f1"/><sourcetrack><mediatype>audio</mediatype><trackindex>1</trackindex></sourcetrack></clipitem>');
+  keptAll().forEach(({ c, kept }, fi) => {
+    const fid = "f" + (fi + 1);
+    const fn = esc(c.name);
+    kept.forEach((g, i) => {
+      ci++;
+      const inF = Math.round(g.s * rate), outF = Math.round(g.e * rate);
+      const dur = outF - inF;
+      const start = tl, end = tl + dur;
+      tl = end;
+      const fileRef = i === 0
+        ? '<file id="' + fid + '"><name>' + fn + '</name><pathurl>file://localhost/' + encodeURIComponent(c.name) + "</pathurl>" + rateXml +
+          "<media><video/><audio><channelcount>2</channelcount></audio></media></file>"
+        : '<file id="' + fid + '"/>';
+      vItems.push(
+        '<clipitem id="v' + ci + '"><name>' + fn + "</name>" + rateXml +
+        "<start>" + start + "</start><end>" + end + "</end><in>" + inF + "</in><out>" + outF + "</out>" +
+        fileRef + "</clipitem>");
+      aItems.push(
+        '<clipitem id="a' + ci + '"><name>' + fn + "</name>" + rateXml +
+        "<start>" + start + "</start><end>" + end + "</end><in>" + inF + "</in><out>" + outF + "</out>" +
+        '<file id="' + fid + '"/><sourcetrack><mediatype>audio</mediatype><trackindex>1</trackindex></sourcetrack></clipitem>');
+    });
   });
   return '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE xmeml>\n<xmeml version="4"><sequence><name>' + esc(name) + "</name>" +
     rateXml +
@@ -523,34 +607,40 @@ function toTc(frames, tb) {
 }
 function buildEdl() {
   const { rate, tb } = fpsInfo();
-  const kept = segs.filter(x => x.on);
   let out = "TITLE: " + ($("seqName").value || "roughcut") + "\nFCM: NON-DROP FRAME\n\n";
-  let tl = 0;
-  kept.forEach((g, i) => {
-    const inF = Math.round(g.s * rate), outF = Math.round(g.e * rate);
-    const dur = outF - inF;
-    out += ("00" + (i + 1)).slice(-3) + "  AX       AA/V  C        " +
-      toTc(inF, tb) + " " + toTc(outF, tb) + " " + toTc(tl, tb) + " " + toTc(tl + dur, tb) + "\n" +
-      "* FROM CLIP NAME: " + (fileName || "source") + "\n\n";
-    tl += dur;
+  let tl = 0, n = 0;
+  keptAll().forEach(({ c, kept }) => {
+    kept.forEach((g) => {
+      n++;
+      const inF = Math.round(g.s * rate), outF = Math.round(g.e * rate);
+      const dur = outF - inF;
+      out += ("00" + n).slice(-3) + "  AX       AA/V  C        " +
+        toTc(inF, tb) + " " + toTc(outF, tb) + " " + toTc(tl, tb) + " " + toTc(tl + dur, tb) + "\n" +
+        "* FROM CLIP NAME: " + c.name + "\n\n";
+      tl += dur;
+    });
   });
   return out;
 }
 function buildCsv() {
-  let out = "﻿No,開始,終了,秒数,有効\n";
-  segs.forEach((g, i) => {
-    out += (i + 1) + "," + g.s.toFixed(2) + "," + g.e.toFixed(2) + "," + (g.e - g.s).toFixed(2) + "," + (g.on ? 1 : 0) + "\n";
+  let out = "﻿素材,No,開始,終了,秒数,有効\n";
+  clips.forEach((c) => {
+    c.segs.forEach((g, i) => {
+      out += '"' + c.name.replace(/"/g, '""') + '",' + (i + 1) + "," +
+        g.s.toFixed(2) + "," + g.e.toFixed(2) + "," + (g.e - g.s).toFixed(2) + "," + (g.on ? 1 : 0) + "\n";
+    });
   });
   return out;
 }
 const baseName = () => ($("seqName").value || "roughcut").replace(/[\\/:*?"<>|\s]+/g, "_");
+const anyKept = () => clips.some(c => c.segs.some(g => g.on));
 $("expXml").addEventListener("click", () => {
-  if (!segs.some(x => x.on)) { toast("有効なクリップがありません"); return; }
+  if (!anyKept()) { toast("有効なクリップがありません"); return; }
   download(baseName() + ".xml", buildXml(), "application/xml");
   toast("XMLを書き出しました → Premiereで読み込み");
 });
 $("expEdl").addEventListener("click", () => {
-  if (!segs.some(x => x.on)) { toast("有効なクリップがありません"); return; }
+  if (!anyKept()) { toast("有効なクリップがありません"); return; }
   download(baseName() + ".edl", buildEdl());
 });
 $("expCsv").addEventListener("click", () => download(baseName() + ".csv", buildCsv(), "text/csv"));
@@ -605,7 +695,7 @@ $("aiRun").addEventListener("click", async () => {
     const ranges = JSON.parse(m[0]).filter(r => Number.isFinite(r.start) && Number.isFinite(r.end) && r.end > r.start);
     if (!ranges.length) throw new Error("残す区間が0件でした");
     applyAiRanges(ranges);
-    aiStatus("✓ " + ranges.length + "区間を反映しました(" +
+    aiStatus("✓ " + ranges.length + "区間を「" + (clips[cur] ? clips[cur].name : "") + "」に反映しました(" +
       ranges.map(r => fmtT(r.start) + "–" + fmtT(r.end)).slice(0, 6).join(", ") +
       (ranges.length > 6 ? " …" : "") + ")", "ok");
   } catch (err) {
@@ -616,13 +706,15 @@ $("aiRun").addEventListener("click", async () => {
 });
 
 function applyAiRanges(ranges) {
+  const c = clips[cur];
+  if (!c) return;
   const inRanges = (s, e) => ranges.some(r => Math.min(e, r.end) - Math.max(s, r.start) > (e - s) * 0.3);
-  if ($("aiIntersect").checked && segs.length) {
+  if ($("aiIntersect").checked && c.segs.length) {
     // 既存の無音カット結果にANDで適用
-    for (const g of segs) g.on = g.on && inRanges(g.s, g.e);
+    for (const g of c.segs) g.on = g.on && inRanges(g.s, g.e);
   } else {
-    // AI区間をそのままセグメントに(音声解析済みならその範囲で)
-    segs = ranges.map(r => ({ s: Math.max(0, r.start), e: Math.min(duration || r.end, r.end), on: true }));
+    // AI区間をそのままセグメントに
+    c.segs = ranges.map(r => ({ s: Math.max(0, r.start), e: Math.min(c.duration || r.end, r.end), on: true }));
   }
   renderAll();
 }
@@ -630,7 +722,7 @@ function applyAiRanges(ranges) {
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }
-window.addEventListener("resize", () => { if (rmsDb) drawWave(); });
+window.addEventListener("resize", () => { if (clips.length) drawWave(); });
 </script>
 </body>
 </html>
