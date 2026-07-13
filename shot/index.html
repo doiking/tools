@@ -216,7 +216,7 @@
     border: none; border-radius: 10px;
     font-weight: 700; font-size: 15px; padding: 13px 0;
   }
-  #sbSend {
+  #sbSend, #resetCut {
     background: #24242c; color: var(--fg);
     border: 1px solid var(--line); border-radius: 9px;
     font-size: 13.5px; padding: 11px 0;
@@ -295,6 +295,7 @@
       <button id="dupCut">複製</button>
       <button id="delCut">削除</button>
     </div>
+    <button id="resetCut">🔄 このカットの配置をリセット</button>
     <div class="small">書き出し</div>
     <button id="drawerExport">📷 PNG書き出し(16:9)</button>
     <div class="small">絵コンテ連携</div>
@@ -1172,6 +1173,17 @@ $("dupCut").addEventListener("click", () => {
   }
   state.cuts.push(c); state.currentId = c.id; selId = null;
   save(); renderAll(); renderCutSel();
+});
+$("resetCut").addEventListener("click", () => {
+  const c = cut();
+  if (!confirm("「" + (c.name || "(無題)") + "」の配置を初期状態(人物1+カメラ)に戻しますか?")) return;
+  const fresh = defaultCut(c.name);
+  c.objects = fresh.objects;
+  c.camId = fresh.camId;
+  selId = null;
+  view.cx = 0; view.cz = 1.2; // 俯瞰マップも初期位置へ
+  save(); renderAll(); renderCutSel();
+  $("drawer").hidden = true;
 });
 $("delCut").addEventListener("click", () => {
   if (!confirm("「" + (cut().name || "(無題)") + "」を削除しますか?")) return;
