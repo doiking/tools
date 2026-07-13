@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>8hammer AI粗編</title>
+<style>
+  :root {
+    --bg: #0e0e11;
+    --panel: #1c1c22;
+    --line: #33333c;
+    --fg: #f2f2ee;
+    --dim: #9a9aa4;
+    --accent: #f7c114;
+    --ok: #3ecf6e;
+    --ng: #ff5a5a;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", sans-serif;
+    font-size: 13px;
+    padding: 10px;
+    overflow-y: auto;
+  }
+  #wrap { display: flex; flex-direction: column; gap: 10px; }
+  #topbar { display: flex; align-items: center; gap: 8px; }
+  #topbar img { height: 20px; }
+  #topbar h1 { font-size: 14px; font-weight: 700; margin: 0; flex: 1; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px;
+  }
+  .ptitle { font-size: 11px; letter-spacing: .08em; color: var(--dim); margin-bottom: 7px; }
+
+  button.big {
+    width: 100%;
+    background: var(--accent); color: #17130a;
+    border: none; border-radius: 9px;
+    font-size: 13.5px; font-weight: 800;
+    padding: 10px 12px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  button.big.sub { background: var(--panel); color: var(--fg); border: 1px solid var(--line); }
+  button.big:disabled { opacity: .45; }
+
+  #msg { font-size: 12px; line-height: 1.6; min-height: 18px; color: var(--dim); }
+  #msg.err { color: var(--ng); }
+  #msg.ok { color: var(--ok); }
+
+  .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .row label { font-size: 11.5px; color: var(--dim); display: flex; align-items: center; gap: 5px; }
+  .row input[type=range] { width: 100px; accent-color: var(--accent); }
+  .row .val { font-size: 12px; font-weight: 700; min-width: 48px; }
+
+  select, input[type=text], input[type=password] {
+    background: #16161b; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 7px;
+    font-size: 12.5px; padding: 6px 8px;
+    font-family: inherit;
+  }
+  select:focus, input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+
+  #clipList { display: flex; flex-wrap: wrap; gap: 5px; }
+  .clip {
+    display: flex; align-items: center; gap: 6px;
+    background: #24242c;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 4px 8px;
+    font-size: 11.5px;
+    cursor: pointer;
+  }
+  .clip.act { border-color: var(--accent); color: var(--accent); }
+  .clip .ct { color: var(--dim); font-size: 10px; }
+  .clip .x { border: none; background: transparent; color: var(--dim); font-size: 11px; padding: 0 2px; cursor: pointer; }
+
+  #wave {
+    width: 100%; height: 90px;
+    background: #101014;
+    border: 1px solid #26262c;
+    border-radius: 8px;
+    display: block;
+    cursor: pointer;
+  }
+  #stats { font-size: 12px; margin-top: 6px; line-height: 1.7; }
+  #stats b { color: var(--accent); font-size: 14px; }
+
+  #segList { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; max-height: 120px; overflow-y: auto; }
+  .seg {
+    display: flex; align-items: center; gap: 5px;
+    background: #24242c;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 4px 7px;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+  }
+  .seg.off { opacity: .38; text-decoration: line-through; }
+  .seg .no { color: var(--accent); font-weight: 800; }
+  .seg .play { border: none; background: transparent; color: var(--dim); font-size: 11px; padding: 0 2px; cursor: pointer; }
+
+  details { border-top: 1px solid #26262c; margin-top: 4px; padding-top: 6px; }
+  summary { font-size: 12px; color: var(--dim); cursor: pointer; padding: 2px 0 6px; }
+  textarea {
+    width: 100%;
+    background: #16161b; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 8px;
+    font-size: 12px; line-height: 1.6;
+    padding: 8px;
+    resize: vertical;
+    font-family: inherit;
+  }
+  #aiStatus { font-size: 12px; margin-top: 6px; line-height: 1.6; }
+  #aiStatus.err { color: var(--ng); }
+  #aiStatus.ok { color: var(--ok); }
+  .note { font-size: 11px; color: var(--dim); line-height: 1.7; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="topbar">
+    <img src="data:image/png;base64,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" alt="8hammer">
+    <h1>AI粗編(ジェットカット)</h1>
+  </div>
+
+  <button class="big" id="btnScan">プロジェクトで選択中の素材を解析</button>
+  <div id="msg">プロジェクトパネルで素材(複数可)を選択して上のボタンを押してください。</div>
+
+  <div class="panel" id="paramPanel" hidden>
+    <div class="ptitle">無音カットの設定(変えると即再計算)</div>
+    <div class="row">
+      <label>しきい値 <input type="range" id="pTh" min="-60" max="-20" step="1" value="-40"><span class="val" id="vTh">-40dB</span></label>
+      <label>最小無音 <input type="range" id="pSil" min="0.1" max="1.5" step="0.05" value="0.4"><span class="val" id="vSil">0.40s</span></label>
+      <label>前後余白 <input type="range" id="pPad" min="0" max="0.3" step="0.01" value="0.08"><span class="val" id="vPad">0.08s</span></label>
+      <label>最短クリップ <input type="range" id="pMin" min="0.1" max="1" step="0.05" value="0.3"><span class="val" id="vMin">0.30s</span></label>
+    </div>
+  </div>
+
+  <div class="panel" id="wavePanel" hidden>
+    <div class="ptitle">素材(タップで波形を切替、✕で外す)</div>
+    <div id="clipList"></div>
+    <div class="ptitle" style="margin-top:8px">波形(タップで有効/無効、▶で試聴)</div>
+    <canvas id="wave"></canvas>
+    <div id="stats"></div>
+    <div id="segList"></div>
+  </div>
+
+  <div class="panel" id="buildPanel" hidden>
+    <div class="ptitle">シーケンスに並べる</div>
+    <div class="row" style="margin-bottom:8px">
+      <input type="text" id="seqName" placeholder="シーケンス名(新規作成時)" value="roughcut" style="flex:1;min-width:120px">
+    </div>
+    <button class="big" id="btnBuild">粗編をシーケンスに並べる</button>
+    <div class="note" style="margin-top:7px">
+      アクティブなシーケンスがあれば<b>その末尾に追加</b>、無ければ新規シーケンスを作成します。
+      画質・fpsを合わせたい場合は、先に素材と同じ設定のシーケンスを開いてから実行してください。
+      XML書き出しや再リンクは不要です。
+    </div>
+
+    <details id="aiSec">
+      <summary>🤖 AI選抜(β)— 文字起こしから「残す部分」をAIに選ばせる</summary>
+      <div class="row" style="margin-bottom:6px">
+        <input type="password" id="aiKey" placeholder="Anthropic APIキー(この端末にのみ保存)" style="flex:1;min-width:150px">
+        <select id="aiModel">
+          <option value="claude-sonnet-5" selected>Claude Sonnet 5(推奨)</option>
+          <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5(高速・安価)</option>
+          <option value="claude-opus-4-8">Claude Opus 4.8</option>
+        </select>
+      </div>
+      <textarea id="aiSrt" rows="5" placeholder="文字起こしを貼り付け(SRT形式推奨)"></textarea>
+      <textarea id="aiInst" rows="2" style="margin-top:6px" placeholder="指示(例: 言い直し・雑談をカット。商品説明は全部残す)"></textarea>
+      <div class="row" style="margin-top:6px">
+        <button class="big" id="aiRun" style="width:auto;padding:8px 14px">AIに選抜させる</button>
+        <label><input type="checkbox" id="aiIntersect" checked> 無音カットと組み合わせる(AND)</label>
+      </div>
+      <div id="aiStatus"></div>
+      <div class="note" style="margin-top:5px">
+        AI選抜は波形に表示中の素材(1本)に適用。文字起こしテキストのみ送信され、映像・音声は送信されません。
+      </div>
+    </details>
+  </div>
+
+  <div class="note">
+    音声はブラウザエンジンでデコードして解析します。H.264/H.265のMOV・MP4、WAV、MP3等に対応。
+    ProRes・MXF等でデコードできない素材は「失敗」と表示されます(その場合はWeb版+変換、または対応をご相談ください)。
+  </div>
+</div>
+
+<script>
+"use strict";
+const LS_KEY = "roughcut.panel.v1";
+const $ = (id) => document.getElementById(id);
+
+/* ---------- Premiere bridge ---------- */
+const bridge = window.__adobe_cep__ || null;
+function jsxCall(code) {
+  return new Promise((resolve, reject) => {
+    if (!bridge) { reject(new Error("Premiere外で開かれています(エクステンションとして起動してください)")); return; }
+    bridge.evalScript(code, (r) => {
+      if (typeof r === "string" && r.indexOf("EvalScript error") === 0) {
+        reject(new Error("Premiereスクリプトの実行に失敗しました"));
+      } else {
+        resolve(r);
+      }
+    });
+  });
+}
+async function readBytes(path) {
+  // CEPのNode統合があればfsで読む(推奨)。テスト・フォールバックはfetch。
+  try {
+    const req = (window.cep_node && window.cep_node.require) || window.require;
+    if (req) {
+      const fs = req("fs");
+      const b = fs.readFileSync(path);
+      return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
+    }
+  } catch (e) {}
+  const url = /^https?:/.test(path) ? path : encodeURI("file://" + path.replace(/\\/g, "/"));
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("読み込み失敗");
+  return await res.arrayBuffer();
+}
+
+let pref = { th: -40, sil: 0.4, pad: 0.08, min: 0.3, aiKey: "", aiModel: "claude-sonnet-5" };
+try { Object.assign(pref, JSON.parse(localStorage.getItem(LS_KEY) || "{}")); } catch (e) {}
+function savePref() { try { localStorage.setItem(LS_KEY, JSON.stringify(pref)); } catch (e) {} }
+
+let clips = [];  // [{nodeId, name, buf, duration, rmsDb, hopDur, segs:[{s,e,on}]}]
+let cur = -1;
+
+function msg(text, cls) {
+  const el = $("msg");
+  el.textContent = text;
+  el.className = cls || "";
+}
+
+/* ---------- scan & analyze ---------- */
+$("btnScan").addEventListener("click", async () => {
+  $("btnScan").disabled = true;
+  msg("プロジェクトの選択を取得中…");
+  try {
+    const raw = await jsxCall("rcGetSelection()");
+    const res = JSON.parse(raw);
+    if (res.err) { msg(res.err, "err"); return; }
+    const items = res.items.sort((a, b) => a.name.localeCompare(b.name, "ja", { numeric: true }));
+    clips = [];
+    cur = -1;
+    const failed = [];
+    for (let i = 0; i < items.length; i++) {
+      msg("解析中… " + (i + 1) + "/" + items.length + " " + items[i].name);
+      await new Promise((r) => setTimeout(r, 0));
+      try {
+        const ab = await readBytes(items[i].path);
+        const ac = new (window.AudioContext || window.webkitAudioContext)();
+        const buf = await ac.decodeAudioData(ab);
+        ac.close && ac.close();
+        const c = { nodeId: items[i].nodeId, name: items[i].name, buf, duration: buf.duration, rmsDb: null, hopDur: 0, segs: [] };
+        computeRms(c);
+        detectClip(c);
+        clips.push(c);
+      } catch (e) {
+        failed.push(items[i].name);
+      }
+    }
+    if (!clips.length) {
+      msg("解析できませんでした(コーデック非対応の可能性): " + failed.join(", "), "err");
+      return;
+    }
+    cur = 0;
+    $("paramPanel").hidden = false;
+    $("wavePanel").hidden = false;
+    $("buildPanel").hidden = false;
+    msg(clips.length + "素材を解析しました" + (failed.length ? " ・ 失敗: " + failed.join(", ") : ""), failed.length ? "" : "ok");
+    renderAll();
+  } catch (e) {
+    msg(String(e.message || e), "err");
+  } finally {
+    $("btnScan").disabled = false;
+  }
+});
+
+function computeRms(c) {
+  const hop = 1024;
+  const buf = c.buf;
+  c.hopDur = hop / buf.sampleRate;
+  const n = Math.floor(buf.length / hop);
+  c.rmsDb = new Float32Array(n);
+  const chs = [];
+  for (let ch = 0; ch < buf.numberOfChannels; ch++) chs.push(buf.getChannelData(ch));
+  for (let i = 0; i < n; i++) {
+    let sum = 0;
+    const off = i * hop;
+    for (let j = 0; j < hop; j += 4) {
+      let v = 0;
+      for (const ch of chs) v += ch[off + j];
+      v /= chs.length;
+      sum += v * v;
+    }
+    const rms = Math.sqrt(sum / (hop / 4));
+    c.rmsDb[i] = 20 * Math.log10(rms + 1e-8);
+  }
+}
+
+function detectClip(c) {
+  const th = pref.th, minSil = pref.sil, pad = pref.pad, minClip = pref.min;
+  const n = c.rmsDb.length;
+  const loud = new Uint8Array(n);
+  for (let i = 0; i < n; i++) loud[i] = c.rmsDb[i] > th ? 1 : 0;
+  const raw = [];
+  let start = -1;
+  for (let i = 0; i <= n; i++) {
+    const v = i < n ? loud[i] : 0;
+    if (v && start < 0) start = i;
+    if (!v && start >= 0) { raw.push([start * c.hopDur - pad, i * c.hopDur + pad]); start = -1; }
+  }
+  const merged = [];
+  for (const r of raw) {
+    const s = Math.max(0, r[0]), e = Math.min(c.duration, r[1]);
+    if (merged.length && s - merged[merged.length - 1][1] < minSil) {
+      merged[merged.length - 1][1] = e;
+    } else {
+      merged.push([s, e]);
+    }
+  }
+  c.segs = merged.filter(r => r[1] - r[0] >= minClip).map(r => ({ s: r[0], e: r[1], on: true }));
+}
+
+/* ---------- params ---------- */
+const paramDefs = [
+  ["pTh", "vTh", "th", (v) => v + "dB"],
+  ["pSil", "vSil", "sil", (v) => (+v).toFixed(2) + "s"],
+  ["pPad", "vPad", "pad", (v) => (+v).toFixed(2) + "s"],
+  ["pMin", "vMin", "min", (v) => (+v).toFixed(2) + "s"],
+];
+for (const [rid, vid, key, fmt] of paramDefs) {
+  $(rid).value = pref[key];
+  $(vid).textContent = fmt(pref[key]);
+  $(rid).addEventListener("input", () => {
+    pref[key] = parseFloat($(rid).value);
+    $(vid).textContent = fmt($(rid).value);
+    savePref();
+    if (clips.length) { clips.forEach(detectClip); renderAll(); }
+  });
+}
+
+/* ---------- render ---------- */
+function fmtT(t) {
+  const m = Math.floor(t / 60), s = t % 60;
+  return m + ":" + (s < 10 ? "0" : "") + s.toFixed(1);
+}
+
+function renderAll() {
+  renderClips();
+  drawWave();
+  let total = 0, keptDur = 0, keptN = 0;
+  for (const c of clips) {
+    total += c.duration;
+    for (const g of c.segs) if (g.on) { keptDur += g.e - g.s; keptN++; }
+  }
+  $("stats").innerHTML = (clips.length > 1 ? clips.length + "素材 ・ " : "") +
+    "元尺 " + fmtT(total) + " → 編集後 <b>" + fmtT(keptDur) + "</b>" +
+    "(−" + fmtT(Math.max(0, total - keptDur)) + " カット)・ <b>" + keptN + "</b> クリップ";
+  renderSegs();
+}
+
+function renderClips() {
+  const box = $("clipList");
+  box.textContent = "";
+  clips.forEach((c, i) => {
+    const el = document.createElement("div");
+    el.className = "clip" + (i === cur ? " act" : "");
+    const nm = document.createElement("span");
+    nm.textContent = c.name.length > 22 ? c.name.slice(0, 11) + "…" + c.name.slice(-8) : c.name;
+    const ct = document.createElement("span");
+    ct.className = "ct";
+    ct.textContent = c.segs.filter(g => g.on).length + "clip";
+    const x = document.createElement("button");
+    x.className = "x";
+    x.textContent = "✕";
+    x.addEventListener("click", (e) => {
+      e.stopPropagation();
+      clips.splice(i, 1);
+      if (cur >= clips.length) cur = clips.length - 1;
+      if (!clips.length) {
+        $("paramPanel").hidden = $("wavePanel").hidden = $("buildPanel").hidden = true;
+        msg("素材がなくなりました。選択し直して解析してください。");
+        return;
+      }
+      renderAll();
+    });
+    el.append(nm, ct, x);
+    el.addEventListener("click", () => { cur = i; renderAll(); });
+    box.appendChild(el);
+  });
+}
+
+function drawWave() {
+  const cv = $("wave");
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = cv.clientWidth * dpr, H = 90 * dpr;
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext("2d");
+  ctx.clearRect(0, 0, W, H);
+  const c = clips[cur];
+  if (!c) return;
+  for (const g of c.segs) {
+    ctx.fillStyle = g.on ? "rgba(247,193,20,.14)" : "rgba(255,90,90,.07)";
+    ctx.fillRect(g.s / c.duration * W, 0, (g.e - g.s) / c.duration * W, H);
+  }
+  const n = c.rmsDb.length;
+  for (let x = 0; x < W; x += 2 * dpr) {
+    const i0 = Math.floor(x / W * n), i1 = Math.max(i0 + 1, Math.floor((x + 2 * dpr) / W * n));
+    let mx = -80;
+    for (let i = i0; i < i1 && i < n; i++) mx = Math.max(mx, c.rmsDb[i]);
+    const h = Math.max(1, (mx + 60) / 60 * H * 0.9);
+    const t = (x / W) * c.duration;
+    const inKeep = c.segs.some(g => g.on && t >= g.s && t <= g.e);
+    ctx.fillStyle = inKeep ? "#f7c114" : "#4a4a54";
+    ctx.fillRect(x, (H - h) / 2, 1.4 * dpr, h);
+  }
+  const ty = (1 - (pref.th + 60) / 60 * 0.9) * H / 2 + H / 4;
+  ctx.strokeStyle = "rgba(255,255,255,.18)";
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(0, ty); ctx.lineTo(W, ty); ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+$("wave").addEventListener("click", (e) => {
+  const c = clips[cur];
+  if (!c || !c.segs.length) return;
+  const r = $("wave").getBoundingClientRect();
+  const t = (e.clientX - r.left) / r.width * c.duration;
+  const g = c.segs.find(x => t >= x.s && t <= x.e);
+  if (g) { g.on = !g.on; renderAll(); }
+});
+
+let playSrc = null, playCtx = null;
+function playSeg(g) {
+  if (!clips[cur]) return;
+  stopPlay();
+  playCtx = new (window.AudioContext || window.webkitAudioContext)();
+  playSrc = playCtx.createBufferSource();
+  playSrc.buffer = clips[cur].buf;
+  playSrc.connect(playCtx.destination);
+  playSrc.start(0, g.s, Math.min(g.e - g.s, 15));
+  playSrc.onended = stopPlay;
+}
+function stopPlay() {
+  if (playSrc) { try { playSrc.stop(); } catch (e) {} playSrc = null; }
+  if (playCtx) { playCtx.close().catch(() => {}); playCtx = null; }
+}
+
+function renderSegs() {
+  const box = $("segList");
+  box.textContent = "";
+  const c = clips[cur];
+  if (!c) return;
+  c.segs.forEach((g, i) => {
+    const el = document.createElement("div");
+    el.className = "seg" + (g.on ? "" : " off");
+    const no = document.createElement("span");
+    no.className = "no";
+    no.textContent = (i + 1);
+    const tt = document.createElement("span");
+    tt.textContent = fmtT(g.s) + "–" + fmtT(g.e);
+    const pl = document.createElement("button");
+    pl.className = "play";
+    pl.textContent = "▶";
+    pl.addEventListener("click", (e) => { e.stopPropagation(); playSeg(g); });
+    el.append(no, tt, pl);
+    el.addEventListener("click", () => { g.on = !g.on; renderAll(); });
+    box.appendChild(el);
+  });
+}
+
+/* ---------- build sequence ---------- */
+$("btnBuild").addEventListener("click", async () => {
+  const items = clips
+    .map(c => ({ nodeId: c.nodeId, segs: c.segs.filter(g => g.on).map(g => [+g.s.toFixed(3), +g.e.toFixed(3)]) }))
+    .filter(x => x.segs.length);
+  if (!items.length) { msg("有効なクリップがありません", "err"); return; }
+  $("btnBuild").disabled = true;
+  msg("シーケンスに配置中…");
+  try {
+    const payload = { name: $("seqName").value || "roughcut", items };
+    const raw = await jsxCall("rcBuild(" + JSON.stringify(JSON.stringify(payload)) + ")");
+    const res = JSON.parse(raw);
+    if (res.err) { msg(res.err, "err"); return; }
+    msg("✓ " + res.ok + "クリップを「" + res.seq + "」に並べました" +
+      (res.created ? "(新規シーケンス)" : "(末尾に追加)") +
+      (res.missing ? " ・ " + res.missing + "素材が見つかりませんでした" : ""), "ok");
+  } catch (e) {
+    msg(String(e.message || e), "err");
+  } finally {
+    $("btnBuild").disabled = false;
+  }
+});
+
+/* ---------- AI selection (β) ---------- */
+$("aiKey").value = pref.aiKey;
+$("aiModel").value = pref.aiModel;
+$("aiKey").addEventListener("change", () => { pref.aiKey = $("aiKey").value; savePref(); });
+$("aiModel").addEventListener("change", () => { pref.aiModel = $("aiModel").value; savePref(); });
+
+function aiStatus(text, cls) {
+  const el = $("aiStatus");
+  el.textContent = text;
+  el.className = cls || "";
+}
+
+$("aiRun").addEventListener("click", async () => {
+  const key = $("aiKey").value.trim();
+  const srt = $("aiSrt").value.trim();
+  const inst = $("aiInst").value.trim();
+  if (!key) { aiStatus("APIキーを入力してください", "err"); return; }
+  if (!srt) { aiStatus("文字起こしを貼り付けてください", "err"); return; }
+  $("aiRun").disabled = true;
+  aiStatus("AIが選抜中…(" + $("aiModel").value + ")");
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: JSON.stringify({
+        model: $("aiModel").value,
+        max_tokens: 8000,
+        system: "あなたは映像編集アシスタント。与えられた文字起こしから、指示に従い「完成版に残すべき区間」を選ぶ。出力はJSON配列のみ: [{\"start\": 秒, \"end\": 秒, \"reason\": \"短い理由\"}]。startとendは数値(秒)。言い直し・フィラー(えー、あの)・指示で除外されたものはカット。会話の切れ目として自然な境界を選ぶこと。JSON以外のテキストは一切出力しない。",
+        messages: [{
+          role: "user",
+          content: "【指示】\n" + (inst || "言い直しやフィラー、無意味な間をカットし、内容が通る最短の粗編にしてください。") + "\n\n【文字起こし】\n" + srt.slice(0, 100000),
+        }],
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error("API " + res.status + ": " + body.slice(0, 200));
+    }
+    const data = await res.json();
+    const text = (data.content || []).map(c => c.text || "").join("");
+    const m = text.match(/\[[\s\S]*\]/);
+    if (!m) throw new Error("応答からJSONを取得できませんでした");
+    const ranges = JSON.parse(m[0]).filter(r => Number.isFinite(r.start) && Number.isFinite(r.end) && r.end > r.start);
+    if (!ranges.length) throw new Error("残す区間が0件でした");
+    applyAiRanges(ranges);
+    aiStatus("✓ " + ranges.length + "区間を「" + (clips[cur] ? clips[cur].name : "") + "」に反映しました", "ok");
+  } catch (err) {
+    aiStatus("エラー: " + err.message, "err");
+  } finally {
+    $("aiRun").disabled = false;
+  }
+});
+
+function applyAiRanges(ranges) {
+  const c = clips[cur];
+  if (!c) return;
+  const inRanges = (s, e) => ranges.some(r => Math.min(e, r.end) - Math.max(s, r.start) > (e - s) * 0.3);
+  if ($("aiIntersect").checked && c.segs.length) {
+    for (const g of c.segs) g.on = g.on && inRanges(g.s, g.e);
+  } else {
+    c.segs = ranges.map(r => ({ s: Math.max(0, r.start), e: Math.min(c.duration || r.end, r.end), on: true }));
+  }
+  renderAll();
+}
+
+window.addEventListener("resize", () => { if (clips.length) drawWave(); });
+if (!bridge) msg("Premiere外で開かれています。Premiereの ウィンドウ → エクステンション → 8hammer AI粗編 から起動してください。", "err");
+</script>
+</body>
+</html>
