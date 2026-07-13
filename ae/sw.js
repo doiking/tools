@@ -1,5 +1,5 @@
 /* Prompter service worker: cache-first so the app works offline on set. */
-const CACHE = "ae-v2";
+const CACHE = "ae-v3";
 const ASSETS = [
   "./",
   "./index.html",

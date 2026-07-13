@@ -335,6 +335,58 @@ const LIB = [
   { cat: "時間・その他", title: "チェックボックスで表示切替", target: "不透明度",
     desc: "「チェックボックス制御」でON/OFF。テンプレの表示スイッチに。",
     code: "effect(\"チェックボックス制御\")(\"チェックボックス\") == 1 ? 100 : 0" },
+
+  { cat: "バウンス・弾み", title: "ポップイン(弾んで登場)", target: "スケール",
+    desc: "イン点から弾みながら0→100%で登場。キーフレーム不要でロゴ・アイコン出しに。",
+    params: [{ k: "freq", l: "速さ", d: 2.5 }, { k: "decay", l: "減衰", d: 6 }],
+    code: "freq = {{freq}}; decay = {{decay}};\nt = Math.max(time - inPoint, 0);\ns = 100 - 100 * Math.cos(freq * t * 2 * Math.PI) / Math.exp(decay * t);\n[s, s]" },
+  { cat: "時間・その他", title: "フェードイン/アウト自動", target: "不透明度",
+    desc: "レイヤーのイン点・アウト点で自動的にフェード。尺を変えても直さなくていい万能式。",
+    params: [{ k: "fade", l: "フェード秒", d: 0.5 }],
+    code: "fade = {{fade}};\nio = linear(time, inPoint, inPoint + fade, 0, 100);\noo = linear(time, outPoint - fade, outPoint, 100, 0);\nMath.min(io, oo)" },
+  { cat: "バウンス・弾み", title: "BPMで脈打つ(音楽同期)", target: "スケール",
+    desc: "曲のBPMに合わせてドクンと拍動。MVやリリックビデオのビート演出に。",
+    params: [{ k: "bpm", l: "BPM", d: 120 }, { k: "amp", l: "強さ", d: 10 }],
+    code: "bpm = {{bpm}}; amp = {{amp}};\nbeat = Math.pow(Math.max(0, Math.sin(time * bpm / 60 * Math.PI * 2)), 8);\nvalue + [amp, amp] * beat" },
+  { cat: "時間・その他", title: "エンドロール(自動スクロール)", target: "位置",
+    desc: "イン点から一定速度で上へ流れ続ける。クレジット・お知らせテロップに。",
+    params: [{ k: "speed", l: "px/秒", d: 80 }],
+    code: "speed = {{speed}};\nvalue - [0, (time - inPoint) * speed]" },
+  { cat: "回転・軌道", title: "画面端で跳ね返る(DVD風)", target: "位置",
+    desc: "画面の端に当たると反射して飛び続ける。スクリーンセーバー風・遊び演出に。",
+    params: [{ k: "vx", l: "横速度", d: 250 }, { k: "vy", l: "縦速度", d: 180 }],
+    code: "vx = {{vx}}; vy = {{vy}};\nfunction tri(x, m){ x = ((x % (2*m)) + 2*m) % (2*m); return x < m ? x : 2*m - x; }\n[tri(value[0] + vx*time, thisComp.width), tri(value[1] + vy*time, thisComp.height)]" },
+  { cat: "揺れ・ランダム", title: "グリッチ明滅(ランダム点滅)", target: "不透明度",
+    desc: "ランダムにパッパッと消える明滅。壊れたモニター・サイバー演出に。rate=表示される確率。",
+    params: [{ k: "fps", l: "更新fps", d: 15 }, { k: "rate", l: "表示率0-1", d: 0.7 }],
+    code: "posterizeTime({{fps}});\nseedRandom(index, false);\nrandom() < {{rate}} ? 100 : 0" },
+  { cat: "揺れ・ランダム", title: "位置グリッチ(瞬間ズレ)", target: "位置",
+    desc: "たまにガクッと位置がズレるデジタルグリッチ。RGBずらしと併用すると効果大。",
+    params: [{ k: "fps", l: "更新fps", d: 8 }, { k: "prob", l: "発生率0-1", d: 0.25 }, { k: "amp", l: "ズレ幅", d: 40 }],
+    code: "posterizeTime({{fps}});\nseedRandom(index, false);\nif (random() < {{prob}}){\n  value + [random(-{{amp}}, {{amp}}), random(-{{amp}}, {{amp}})];\n}else{\n  value;\n}" },
+  { cat: "テキスト・数字", title: "数字ロール(目標値で止まる)", target: "ソーステキスト",
+    desc: "イン点からdur秒かけて目標値までカウントし、最後は減速して止まる。実績数字の演出に。",
+    params: [{ k: "target", l: "目標値", d: 10000 }, { k: "dur", l: "秒数", d: 2 }],
+    code: "target = {{target}}; dur = {{dur}};\nn = Math.floor(easeOut(time, inPoint, inPoint + dur, 0, target));\nn.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, \",\")" },
+  { cat: "テキスト・数字", title: "カウントダウン", target: "ソーステキスト",
+    desc: "指定秒からゼロへ。イベントオープニングや料理の待ち時間演出に。",
+    params: [{ k: "total", l: "開始秒", d: 10 }],
+    code: "total = {{total}};\nt = Math.max(total - (time - inPoint), 0);\nMath.ceil(t).toString()" },
+  { cat: "配置・整列", title: "円形に等間隔配置", target: "位置(複製して使う)",
+    desc: "複製するだけでn個が円周上に等間隔で並ぶ。時計・放射状メニュー・ローディングに。",
+    params: [{ k: "n", l: "個数", d: 8 }, { k: "r", l: "半径(px)", d: 300 }],
+    code: "n = {{n}}; r = {{r}};\na = (index - 1) * 2 * Math.PI / n - Math.PI / 2;\n[thisComp.width/2 + Math.cos(a)*r, thisComp.height/2 + Math.sin(a)*r]" },
+  { cat: "回転・軌道", title: "秒針・カクカク回転", target: "回転",
+    desc: "時計の秒針のように1ステップずつカチッカチッと回る。steps=1周の分割数。",
+    params: [{ k: "steps", l: "1周の分割", d: 60 }],
+    code: "steps = {{steps}};\nMath.floor(time * steps / 60) * (360 / steps)" },
+  { cat: "配置・整列", title: "ウェーブ(複製で波)", target: "位置(複製して使う)",
+    desc: "indexで位相をずらしたsin波。複製すると波打つ動きに。音符・パーティクル風の演出に。",
+    params: [{ k: "amp", l: "振れ幅", d: 25 }, { k: "speed", l: "速さ", d: 1 }, { k: "phase", l: "位相ずれ", d: 0.8 }],
+    code: "amp = {{amp}}; speed = {{speed}}; phase = {{phase}};\nvalue + [0, Math.sin(time*speed*2*Math.PI + (index-1)*phase) * amp]" },
+  { cat: "追従・遅延", title: "常にカメラ目線(3Dビルボード)", target: "方向(3Dレイヤー)",
+    desc: "3Dレイヤーが常にカメラの正面を向く。コンプにカメラが必要。人物切り抜きや看板を3D空間に置くときに。",
+    code: "lookAt(position, thisComp.activeCamera.position)" },
 ];
 LIB.forEach((e, i) => e.id = "lib" + i);
 
@@ -496,6 +548,86 @@ const DEMOS = {
     const on = Math.floor(t) % 2 === 0;
     d.textAt(on ? "☑" : "☐", 30, CY, 22);
     d.sq(CX, CY, { opacity: on ? 1 : 0 });
+  },
+  "ポップイン(弾んで登場)": (t, p, d) => {
+    const T = 2.4, tt = t % T;
+    const sc = (100 - 100 * Math.cos(p.freq * tt * 6.283) / Math.exp(p.decay * tt)) / 100;
+    d.sq(CX, CY, { scale: Math.max(0, sc), size: 34 });
+  },
+  "フェードイン/アウト自動": (t, p, d) => {
+    const T = 3.2, tt = t % T, out = 2.6;
+    const io = Math.max(0, Math.min(1, tt / Math.max(0.05, p.fade)));
+    const oo = Math.max(0, Math.min(1, (out - tt) / Math.max(0.05, p.fade)));
+    d.sq(CX, CY, { opacity: Math.min(io, oo) });
+    d.label(tt < p.fade ? "イン点フェード" : tt > out - p.fade ? "アウト点フェード" : "");
+  },
+  "BPMで脈打つ(音楽同期)": (t, p, d) => {
+    const beat = Math.pow(Math.max(0, Math.sin(t * p.bpm / 60 * Math.PI * 2)), 8);
+    d.sq(CX, CY, { scale: 1 + beat * p.amp / 40, size: 32 });
+    d.label(p.bpm + " BPM");
+  },
+  "エンドロール(自動スクロール)": (t, p, d) => {
+    const sp = Math.max(10, p.speed) * 0.45;
+    for (let i = 0; i < 7; i++) {
+      const y = ((140 + i * 34 - t * sp) % 238 + 238) % 238 - 40;
+      d.bar(CX - 60, y, 120 - (i % 3) * 26, 8);
+    }
+  },
+  "画面端で跳ね返る(DVD風)": (t, p, d) => {
+    const tri = (x, m) => { x = ((x % (2 * m)) + 2 * m) % (2 * m); return x < m ? x : 2 * m - x; };
+    d.sq(12 + tri(p.vx * 0.35 * t, 296), 12 + tri(p.vy * 0.35 * t, 96), { size: 22 });
+  },
+  "グリッチ明滅(ランダム点滅)": (t, p, d) => {
+    const q = Math.floor(t * Math.max(1, p.fps));
+    const R = (n) => { const x = Math.sin(n * 127.1) * 43758.5453; return x - Math.floor(x); };
+    d.sq(CX, CY, { opacity: R(q) < p.rate ? 1 : 0 });
+  },
+  "位置グリッチ(瞬間ズレ)": (t, p, d) => {
+    const q = Math.floor(t * Math.max(1, p.fps));
+    const R = (n) => { const x = Math.sin(n * 127.1) * 43758.5453; return x - Math.floor(x); };
+    let x = CX, y = CY;
+    if (R(q) < p.prob) { x += (R(q + 0.3) - 0.5) * 2 * p.amp; y += (R(q + 0.7) - 0.5) * 2 * Math.min(p.amp, 35); }
+    d.sq(x, y);
+  },
+  "数字ロール(目標値で止まる)": (t, p, d) => {
+    const T = p.dur + 1.6, tt = t % T;
+    const ph = Math.max(0, Math.min(1, tt / Math.max(0.1, p.dur)));
+    const e = 1 - Math.pow(1 - ph, 3);
+    d.bigtext(fmtNum(Math.floor(e * p.target)));
+  },
+  "カウントダウン": (t, p, d) => {
+    const T = p.total + 1.5, tt = t % T;
+    d.bigtext(Math.ceil(Math.max(p.total - tt, 0)).toString(), 30);
+  },
+  "円形に等間隔配置": (t, p, d) => {
+    const n = Math.max(2, Math.min(24, Math.round(p.n)));
+    const r = Math.min(Math.abs(p.r) * 0.15, 46);
+    for (let i = 0; i < n; i++) {
+      const a = i * 2 * Math.PI / n - Math.PI / 2;
+      d.sq(CX + Math.cos(a) * r, CY + Math.sin(a) * r, { size: Math.max(8, 20 - n * 0.5) });
+    }
+  },
+  "秒針・カクカク回転": (t, p, d) => {
+    const steps = Math.max(2, p.steps);
+    const rot = Math.floor((t * 6) * steps / 60) * (360 / steps); // デモは6倍速
+    const a = (rot - 90) * Math.PI / 180;
+    for (let i = 0; i < 12; i++) {
+      const b = i * Math.PI / 6;
+      d.dot(CX + Math.cos(b) * 46, CY + Math.sin(b) * 46, "#3a3a44");
+    }
+    d.line(CX, CY, CX + Math.cos(a) * 42, CY + Math.sin(a) * 42);
+    d.dot(CX, CY);
+  },
+  "ウェーブ(複製で波)": (t, p, d) => {
+    for (let i = 0; i < 6; i++) {
+      d.sq(48 + i * 45, CY + Math.sin(t * p.speed * 6.283 + i * p.phase) * Math.min(p.amp, 38), { size: 20 });
+    }
+  },
+  "常にカメラ目線(3Dビルボード)": (t, p, d) => {
+    const cam = liss(t);
+    d.dot(cam.x, cam.y, "#8a8a94"); d.label("グレー=カメラ");
+    const ang = Math.atan2(cam.y - CY, cam.x - CX);
+    d.arrow(CX, CY, ang);
   },
 };
 
