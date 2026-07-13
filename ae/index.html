@@ -92,6 +92,14 @@
     -webkit-user-select: text; user-select: text;
   }
   .params input:focus { outline: none; border-color: var(--accent); }
+  .demo {
+    width: 100%; height: 120px;
+    background: #101014;
+    border: 1px solid #26262c;
+    border-radius: 10px;
+    margin-bottom: 8px;
+    display: block;
+  }
   .codeRow { position: relative; }
   pre {
     background: #101014;
@@ -330,6 +338,281 @@ const LIB = [
 ];
 LIB.forEach((e, i) => e.id = "lib" + i);
 
+/* ---------- live demo engine ---------- */
+const CX = 160, CY = 60; // 論理ステージ 320x120 の中心
+// wiggle風の滑らかなノイズ(デモ用の近似)
+function pw(f, a, t, s = 0) {
+  return a * 0.55 * (Math.sin(t * f * 6.283 * 0.93 + s * 7.1 + 1.7)
+       + 0.6 * Math.sin(t * f * 6.283 * 1.71 + s * 3.7 + 4.2));
+}
+function liss(t) {
+  return { x: CX + 85 * Math.sin(t * 1.1), y: CY + 28 * Math.sin(t * 1.7 + 1) };
+}
+function fmtNum(n) { return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+
+const DEMOS = {
+  "wiggle(基本の揺れ)": (t, p, d) => d.sq(CX + pw(p.freq, p.amp, t, 1), CY + pw(p.freq, p.amp, t, 2)),
+  "横(X)だけ揺らす": (t, p, d) => { d.hline(CY); d.sq(CX + pw(p.freq, p.amp, t, 1), CY); },
+  "ループする揺れ(シームレス)": (t, p, d) => {
+    const L = Math.max(0.5, p.dur), tt = t % L;
+    const bl = (s) => { const a = pw(p.freq, p.amp, tt, s), b = pw(p.freq, p.amp, tt - L, s); return a + (b - a) * (tt / L); };
+    d.sq(CX + bl(1), CY + bl(2));
+    d.label("loop " + tt.toFixed(1) + "s / " + L + "s");
+  },
+  "カクカク揺れ(コマ落ち風)": (t, p, d) => {
+    const q = Math.floor(t * Math.max(1, p.fps)) / Math.max(1, p.fps);
+    d.sq(CX + pw(10, p.amp, q, 1), CY + pw(10, p.amp, q, 2));
+  },
+  "カメラの手ブレ風": (t, p, d) => d.sq(CX + pw(0.5, 20, t, 1) + pw(8, 3, t, 3), CY + pw(0.5, 20, t, 2) + pw(8, 3, t, 4)),
+  "ランダム配置(シード固定)": (t, p, d) => {
+    const R = (n) => { const x = Math.sin(n * 127.1) * 43758.5453; return x - Math.floor(x); };
+    for (let i = 0; i < 5; i++) d.sq(25 + R(i + 1) * 270, 18 + R(i + 11) * 84, { size: 16, color: i ? "#8a8a94" : undefined });
+    d.label("index毎に固定");
+  },
+  "キーフレームをループ": (t, p, d) => {
+    const tt = (t % 1.6) / 1.0;
+    d.kfmark(70, CY); d.kfmark(250, CY);
+    d.sq(70 + Math.min(tt, 1) * 180, CY);
+    d.label("cycle");
+  },
+  "最初のキーの前もループ": (t, p, d) => {
+    const tt = t % 2, ph = tt < 1 ? tt : 2 - tt;
+    d.kfmark(70, CY); d.kfmark(250, CY);
+    d.sq(70 + ph * 180, CY);
+    d.label("前後にループ");
+  },
+  "バウンス(キーフレーム後に弾む)": (t, p, d) => {
+    const T = 2.4, tt = t % T, D = 0.55, v = 180 / D;
+    let x;
+    if (tt < D) x = 70 + (tt / D) * 180;
+    else { const t2 = tt - D; x = 250 + v * p.amp * Math.sin(p.freq * t2 * 6.283) / Math.exp(p.decay * t2); }
+    d.kfmark(70, CY); d.kfmark(250, CY);
+    d.sq(x, CY);
+  },
+  "マーカーでポップ(スケール)": (t, p, d) => {
+    const T = 1.4, tt = t % T;
+    const sc = p.amp * Math.sin(p.freq * tt * 6.283) / Math.exp(p.decay * tt);
+    d.sq(CX, CY, { scale: 1 + sc / 100 });
+    d.label(tt < 0.12 ? "◆ marker!" : "◆");
+  },
+  "振り子(だんだん止まる)": (t, p, d) => {
+    const T = 5, tt = t % T;
+    const rot = p.amp * Math.sin(p.freq * tt * 6.283) / Math.exp(p.decay * tt);
+    const a = (rot - 90) * Math.PI / 180;
+    const px2 = CX + Math.cos(a) * -52, py2 = 14 - Math.sin(a) * -52;
+    d.line(CX, 14, px2, py2);
+    d.sq(px2, py2, { size: 20, rot });
+  },
+  "他レイヤーを遅れて追いかける": (t, p, d) => {
+    const L = liss(t), F = liss(t - p.delay);
+    d.dot(L.x, L.y, "#8a8a94"); d.label("グレー=リーダー");
+    d.sq(F.x, F.y, { size: 22 });
+  },
+  "複製で時間差追従(index)": (t, p, d) => {
+    const L = liss(t);
+    d.dot(L.x, L.y, "#8a8a94");
+    for (let i = 1; i <= 3; i++) { const F = liss(t - p.delay * i); d.sq(F.x, F.y, { size: 22 - i * 4 }); }
+  },
+  "他レイヤーの方を向く": (t, p, d) => {
+    const tg = liss(t);
+    d.dot(tg.x, tg.y, "#8a8a94");
+    d.arrow(CX, CY, Math.atan2(tg.y - CY, tg.x - CX));
+  },
+  "動きをなめらかに(smooth)": (t, p, d) => {
+    const raw = (x) => ({ x: liss(x).x + pw(7, 14, x, 5), y: liss(x).y + pw(7, 14, x, 6) });
+    const r = raw(t);
+    let sx = 0, sy = 0, N = 7;
+    for (let i = 0; i < N; i++) { const q = raw(t - p.w / 2 + p.w * i / (N - 1)); sx += q.x; sy += q.y; }
+    d.dot(r.x, r.y, "#8a8a94"); d.label("グレー=元の動き");
+    d.sq(sx / N, sy / N, { size: 22 });
+  },
+  "音に反応(オーディオ振幅)": (t, p, d) => {
+    const beat = Math.pow(Math.max(0, Math.sin(t * 6.283)), 8);
+    d.sq(CX, CY, { scale: 1 + 0.5 * beat * p.mul });
+    for (let i = 0; i < 5; i++) d.bar(30 + i * 12, 100, 8, 6 + 24 * Math.pow(Math.max(0, Math.sin(t * 6.283 + i)), 4));
+  },
+  "カウントアップ数字": (t, p, d) => d.bigtext(fmtNum(Math.floor((t % 6) * p.rate))),
+  "スライダーの値を表示": (t, p, d) => {
+    const ph = (t % 3) / 3;
+    d.bigtext(fmtNum(Math.round(ph * 10000)));
+    d.label("スライダー: " + (ph * 100).toFixed(0) + "%");
+  },
+  "タイムコード表示": (t, p, d) => {
+    const tt = t % 600, m = Math.floor(tt / 60), sc = Math.floor(tt % 60), f = Math.floor((tt % 1) * 30);
+    const z = (n) => ("0" + n).slice(-2);
+    d.bigtext(z(m) + ":" + z(sc) + ":" + z(f));
+  },
+  "タイプライター(1文字ずつ)": (t, p, d) => {
+    const str = "ここに表示したい文章";
+    const T = p.dur + 1.2, tt = t % T;
+    const n = Math.floor(Math.min(1, tt / p.dur) * str.length);
+    d.bigtext(str.substr(0, n) + (tt % 0.8 < 0.4 ? "|" : ""), 17);
+  },
+  "画面中央に配置": (t, p, d) => { d.cross(); d.sq(CX, CY); },
+  "indexで横に等間隔に並べる": (t, p, d) => {
+    const g = Math.max(20, Math.min(Math.abs(p.gap) * 0.5, 80)) * Math.sign(p.gap || 1);
+    for (let i = 0; i < 4; i++) d.sq(CX + (i - 1.5) * g, CY, { size: 22 });
+  },
+  "indexで時間差フェードイン": (t, p, d) => {
+    const T = 4 * (p.delay * 3 + p.dur) > 2 ? (p.delay * 3 + p.dur + 1.2) : 3;
+    const tt = t % T;
+    for (let i = 0; i < 4; i++) {
+      const o = Math.max(0, Math.min(1, (tt - i * p.delay) / Math.max(0.05, p.dur)));
+      d.sq(75 + i * 57, CY, { size: 26, opacity: o });
+    }
+  },
+  "テキスト幅に合わせる下線・座布団": (t, p, d) => {
+    const texts = ["短い", "ながーいテキスト"];
+    const idx = Math.floor(t / 1.8) % 2;
+    const ph = (t % 1.8) / 1.8;
+    const w1 = d.measure(texts[idx], 15) + p.pad * 0.4;
+    const w0 = d.measure(texts[(idx + 1) % 2], 15) + p.pad * 0.4;
+    const w = ph < 0.18 ? w0 + (w1 - w0) * (ph / 0.18) : w1;
+    d.bar(CX - w / 2, CY + 12, w, 6);
+    d.textAt(texts[idx], CX, CY, 15);
+  },
+  "等速でずっと回転": (t, p, d) => d.sq(CX, CY, { rot: t * p.speed, size: 34 }),
+  "円運動(周回)": (t, p, d) => {
+    const r = Math.min(Math.abs(p.r) * 0.22, 48);
+    const a = t * p.speed * 6.283;
+    d.dot(CX, CY, "#3a3a44");
+    d.sq(CX + Math.cos(a) * r, CY + Math.sin(a) * r, { size: 20 });
+  },
+  "縦横比を固定してスケール": (t, p, d) => d.sq(CX, CY, { scale: 1 + 0.28 * Math.sin(t * 2.2), size: 30 }),
+  "点滅(パカパカ)": (t, p, d) => d.sq(CX, CY, { opacity: Math.sin(t * p.freq * 6.283) > 0 ? 1 : 0 }),
+  "コマ落ち(fpsを落とす)": (t, p, d) => {
+    const x = (q) => 60 + ((q * 70) % 200);
+    d.dot(x(t), 32, "#3a3a44"); d.label("グレー=元(滑らか)");
+    const q = Math.floor(t * Math.max(1, p.fps)) / Math.max(1, p.fps);
+    d.sq(x(q), 80, { size: 22 });
+  },
+  "別プロパティにリンク(範囲制限つき)": (t, p, d) => {
+    const v = 50 + 50 * Math.sin(t * 1.4);
+    const c = Math.max(20, Math.min(80, v));
+    d.sq(CX, CY, { opacity: c / 100 });
+    d.label("元 " + v.toFixed(0) + " → clamp " + c.toFixed(0));
+  },
+  "チェックボックスで表示切替": (t, p, d) => {
+    const on = Math.floor(t) % 2 === 0;
+    d.textAt(on ? "☑" : "☐", 30, CY, 22);
+    d.sq(CX, CY, { opacity: on ? 1 : 0 });
+  },
+};
+
+const cvMap = new Map();   // canvas -> entry
+const visibleCv = new Set();
+const io = new IntersectionObserver((es) => {
+  for (const en of es) {
+    if (en.isIntersecting) visibleCv.add(en.target);
+    else visibleCv.delete(en.target);
+  }
+});
+
+function resolvedParams(e) {
+  const o = {};
+  for (const p of e.params || []) {
+    const v = parseFloat((state.pvals[e.id] || {})[p.k]);
+    o[p.k] = Number.isFinite(v) ? v : p.d;
+  }
+  return o;
+}
+
+function makeDraw(ctx, W, H) {
+  const kx = W / 320, ky = H / 120;
+  const S = Math.min(kx, ky);
+  const X = (x) => x * kx, Y = (y) => y * ky;
+  const d = {};
+  d.sq = (x, y, o = {}) => {
+    const size = (o.size || 26) * S * (o.scale != null ? o.scale : 1);
+    ctx.save();
+    ctx.globalAlpha = o.opacity != null ? o.opacity : 1;
+    ctx.translate(X(x), Y(y));
+    ctx.rotate((o.rot || 0) * Math.PI / 180);
+    ctx.fillStyle = o.color || "#f7c114";
+    const r = Math.min(5, size * 0.18);
+    ctx.beginPath();
+    ctx.roundRect(-size / 2, -size / 2, size, size, r);
+    ctx.fill();
+    ctx.restore();
+  };
+  d.dot = (x, y, color) => {
+    ctx.fillStyle = color || "#f7c114";
+    ctx.beginPath();
+    ctx.arc(X(x), Y(y), 5 * S, 0, 7);
+    ctx.fill();
+  };
+  d.bar = (x, y, w, h) => { ctx.fillStyle = "#f7c114"; ctx.fillRect(X(x), Y(y) - h * S, w * S, h * S); };
+  d.line = (x1, y1, x2, y2) => {
+    ctx.strokeStyle = "#55555f"; ctx.lineWidth = 2 * S;
+    ctx.beginPath(); ctx.moveTo(X(x1), Y(y1)); ctx.lineTo(X(x2), Y(y2)); ctx.stroke();
+  };
+  d.hline = (y) => { ctx.strokeStyle = "#26262c"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, Y(y)); ctx.lineTo(W, Y(y)); ctx.stroke(); };
+  d.cross = () => {
+    ctx.strokeStyle = "#26262c"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(X(CX), 0); ctx.lineTo(X(CX), H); ctx.moveTo(0, Y(CY)); ctx.lineTo(W, Y(CY)); ctx.stroke();
+  };
+  d.kfmark = (x, y) => {
+    ctx.save();
+    ctx.translate(X(x), Y(y + 34));
+    ctx.rotate(Math.PI / 4);
+    ctx.fillStyle = "#55555f";
+    ctx.fillRect(-4 * S, -4 * S, 8 * S, 8 * S);
+    ctx.restore();
+  };
+  d.arrow = (x, y, ang) => {
+    ctx.save();
+    ctx.translate(X(x), Y(y));
+    ctx.rotate(ang);
+    ctx.fillStyle = "#f7c114";
+    ctx.beginPath();
+    ctx.moveTo(22 * S, 0); ctx.lineTo(-14 * S, -12 * S); ctx.lineTo(-8 * S, 0); ctx.lineTo(-14 * S, 12 * S);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  };
+  d.label = (str) => {
+    ctx.fillStyle = "#9a9aa4";
+    ctx.font = (11 * S) + "px sans-serif";
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    ctx.fillText(str, 8, 7);
+  };
+  d.bigtext = (str, size = 26) => {
+    ctx.fillStyle = "#f7f2ee";
+    ctx.font = "700 " + (size * S) + "px ui-monospace, Menlo, monospace";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(str, X(CX), Y(CY));
+  };
+  d.textAt = (str, x, y, size = 14) => {
+    ctx.fillStyle = "#f7f2ee";
+    ctx.font = "700 " + (size * S) + "px sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(str, X(x), Y(y));
+  };
+  d.measure = (str, size = 14) => {
+    ctx.font = "700 " + (size * S) + "px sans-serif";
+    return ctx.measureText(str).width / kx;
+  };
+  return d;
+}
+
+const demoT0 = performance.now();
+function demoLoop(now) {
+  const t = (now - demoT0) / 1000;
+  for (const cv of visibleCv) {
+    if (!cv.isConnected) { visibleCv.delete(cv); cvMap.delete(cv); continue; }
+    const e = cvMap.get(cv);
+    if (!e) continue;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const W = cv.clientWidth * dpr, H = cv.clientHeight * dpr;
+    if (!W) continue;
+    if (cv.width !== W) { cv.width = W; cv.height = H; }
+    const ctx = cv.getContext("2d");
+    ctx.clearRect(0, 0, W, H);
+    try { DEMOS[e.title](t, resolvedParams(e), makeDraw(ctx, W, H)); } catch (err) {}
+  }
+  requestAnimationFrame(demoLoop);
+}
+requestAnimationFrame(demoLoop);
+
 /* ---------- state ---------- */
 let state = { lang: "jp", favs: [], my: [], cat: "すべて", pvals: {} };
 try { Object.assign(state, JSON.parse(localStorage.getItem(LS_KEY) || "{}")); } catch (e) {}
@@ -448,6 +731,14 @@ function expCard(e) {
   target.textContent = "適用先: " + e.target;
 
   card.append(head, desc, target);
+
+  if (DEMOS[e.title]) {
+    const cv = document.createElement("canvas");
+    cv.className = "demo";
+    cvMap.set(cv, e);
+    io.observe(cv);
+    card.appendChild(cv);
+  }
 
   const codeRow = document.createElement("div");
   codeRow.className = "codeRow";
