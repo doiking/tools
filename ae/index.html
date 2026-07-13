@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0e0e11">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<title>AEエクスプレッション集 — 8hammer</title>
+<style>
+  :root {
+    --bg: #0e0e11;
+    --panel: #1c1c22;
+    --line: #33333c;
+    --fg: #f2f2ee;
+    --dim: #9a9aa4;
+    --accent: #f7c114;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    touch-action: manipulation;
+    padding: calc(10px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
+  }
+  button { font-family: inherit; }
+  #wrap { max-width: 900px; margin: 0 auto; }
+
+  #topbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  #topbar img { height: 24px; }
+  #topbar h1 { font-size: 17px; font-weight: 700; margin: 0; flex: 1; white-space: nowrap; }
+  #langToggle {
+    background: var(--panel); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 9px;
+    font-size: 13px; padding: 8px 12px;
+  }
+  #langToggle b { color: var(--accent); }
+
+  #search {
+    width: 100%;
+    background: var(--panel); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 11px;
+    font-size: 16px; padding: 11px 14px;
+    margin-bottom: 10px;
+    -webkit-user-select: text; user-select: text;
+  }
+  #search:focus { outline: none; border-color: var(--accent); }
+
+  #cats { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
+  #cats button {
+    background: #24242c; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 18px;
+    font-size: 13.5px; padding: 8px 13px;
+  }
+  #cats button.sel { background: var(--accent); color: #17130a; border-color: var(--accent); font-weight: 700; }
+
+  .exp {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+  }
+  .ehead { display: flex; align-items: flex-start; gap: 8px; }
+  .ehead .t { font-size: 15.5px; font-weight: 700; flex: 1; }
+  .ehead .cat {
+    font-size: 10.5px; color: var(--dim);
+    border: 1px solid var(--line); border-radius: 6px;
+    padding: 2px 7px; white-space: nowrap; margin-top: 1px;
+  }
+  .fav {
+    background: transparent; border: none;
+    font-size: 18px; padding: 0 2px;
+    color: #55555f;
+  }
+  .fav.on { color: var(--accent); }
+  .desc { font-size: 13px; color: var(--dim); line-height: 1.7; margin: 6px 0 8px; }
+  .target { font-size: 11.5px; color: var(--accent); margin-bottom: 8px; }
+  .params { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+  .params label { font-size: 12px; color: var(--dim); display: flex; align-items: center; gap: 5px; }
+  .params input {
+    width: 72px;
+    background: #16161b; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 7px;
+    font-size: 14px; font-weight: 700; padding: 6px 7px; text-align: right;
+    -webkit-user-select: text; user-select: text;
+  }
+  .params input:focus { outline: none; border-color: var(--accent); }
+  .codeRow { position: relative; }
+  pre {
+    background: #101014;
+    border: 1px solid #26262c;
+    border-radius: 10px;
+    padding: 11px 12px;
+    margin: 0;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    line-height: 1.65;
+    overflow-x: auto;
+    white-space: pre;
+    color: #d8e6c8;
+    -webkit-user-select: text; user-select: text;
+  }
+  .copyBtn {
+    position: absolute; top: 8px; right: 8px;
+    background: var(--accent); color: #17130a;
+    border: none; border-radius: 8px;
+    font-size: 12.5px; font-weight: 700;
+    padding: 7px 12px;
+  }
+  .copyBtn:active { filter: brightness(.85); }
+
+  #mySec { margin-top: 22px; }
+  #mySec h2 { font-size: 15px; margin: 0 0 10px; display: flex; align-items: center; gap: 10px; }
+  #addMy {
+    background: var(--accent); color: #17130a;
+    border: none; border-radius: 9px;
+    font-size: 13px; font-weight: 700; padding: 8px 13px;
+  }
+  .myArea {
+    width: 100%;
+    background: #101014; color: #d8e6c8;
+    border: 1px solid #26262c; border-radius: 10px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12.5px; line-height: 1.65;
+    padding: 10px 12px;
+    resize: vertical; min-height: 84px;
+    -webkit-user-select: text; user-select: text;
+  }
+  .myTitle {
+    width: 100%;
+    background: #16161b; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 8px;
+    font-size: 14.5px; font-weight: 600; padding: 9px 11px;
+    margin-bottom: 8px;
+    -webkit-user-select: text; user-select: text;
+  }
+  .myTitle:focus, .myArea:focus { outline: none; border-color: var(--accent); }
+  .myBtns { display: flex; gap: 8px; margin-top: 8px; }
+  .myBtns button {
+    background: #24242c; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 8px;
+    font-size: 13px; padding: 8px 13px;
+  }
+  .myBtns .cp { background: var(--accent); color: #17130a; border-color: var(--accent); font-weight: 700; }
+  .myBtns .del { color: #ff8484; margin-left: auto; }
+
+  #empty { color: var(--dim); font-size: 14px; text-align: center; padding: 30px 0; }
+  #note { font-size: 12px; color: var(--dim); line-height: 1.8; margin-top: 20px; }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 24px;
+    transform: translateX(-50%);
+    background: var(--accent); color: #17130a;
+    font-size: 14px; font-weight: 700;
+    padding: 10px 18px; border-radius: 12px;
+    z-index: 20;
+    display: none;
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="topbar">
+    <img src="data:image/png;base64,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" alt="8hammer">
+    <h1>AEエクスプレッション集</h1>
+    <button id="langToggle"></button>
+  </div>
+  <input id="search" placeholder="検索(例: wiggle、ループ、カウント…)" autocomplete="off">
+  <div id="cats"></div>
+  <div id="list"></div>
+
+  <div id="mySec">
+    <h2>マイ・スニペット <button id="addMy">＋追加</button></h2>
+    <div id="myList"></div>
+  </div>
+
+  <div id="note">
+    ・エフェクト名の言語は右上のボタンで切替(日本語版AE ⇄ 英語版AE)。レイヤー名(「リーダー」等)はご自身の構成に合わせて書き換えてください。<br>
+    ・コードはプロパティを <b>Alt(Opt)+クリック</b> してエクスプレッション欄に貼り付けます。マイ・スニペットは端末内に自動保存されます。
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+const LS_KEY = "ae.v1";
+const $ = (id) => document.getElementById(id);
+const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+/* 日本語版AE ⇄ 英語版AE のエフェクト名対訳 */
+const JP2EN = [
+  ["スライダー制御", "Slider Control"],
+  ["スライダー", "Slider"],
+  ["チェックボックス制御", "Checkbox Control"],
+  ["チェックボックス", "Checkbox"],
+  ["両方のチャンネル", "Both Channels"],
+  ["オーディオ振幅", "Audio Amplitude"],
+];
+
+const CATS = ["揺れ・ランダム", "ループ", "バウンス・弾み", "追従・遅延", "テキスト・数字", "配置・整列", "回転・軌道", "時間・その他"];
+
+const LIB = [
+  { cat: "揺れ・ランダム", title: "wiggle(基本の揺れ)", target: "位置・回転・不透明度など",
+    desc: "いちばん使う揺れ。freq=1秒あたりの回数、amp=振れ幅。",
+    params: [{ k: "freq", l: "回数/秒", d: 3 }, { k: "amp", l: "振れ幅", d: 30 }],
+    code: "wiggle({{freq}}, {{amp}})" },
+  { cat: "揺れ・ランダム", title: "横(X)だけ揺らす", target: "位置",
+    desc: "縦は固定して横方向だけwiggle。[w[0], value[1]] の入れ替えで縦だけにも。",
+    params: [{ k: "freq", l: "回数/秒", d: 3 }, { k: "amp", l: "振れ幅", d: 30 }],
+    code: "w = wiggle({{freq}}, {{amp}});\n[w[0], value[1]]" },
+  { cat: "揺れ・ランダム", title: "ループする揺れ(シームレス)", target: "位置など",
+    desc: "指定秒でループしても継ぎ目が出ないwiggle。ループGIFやBG素材に。",
+    params: [{ k: "freq", l: "回数/秒", d: 2 }, { k: "amp", l: "振れ幅", d: 30 }, { k: "dur", l: "ループ秒", d: 4 }],
+    code: "freq = {{freq}}; amp = {{amp}}; loopTime = {{dur}};\nt = time % loopTime;\nw1 = wiggle(freq, amp, 1, 0.5, t);\nw2 = wiggle(freq, amp, 1, 0.5, t - loopTime);\nlinear(t, 0, loopTime, w1, w2)" },
+  { cat: "揺れ・ランダム", title: "カクカク揺れ(コマ落ち風)", target: "位置・回転など",
+    desc: "posterizeTimeで更新頻度を落としたwiggle。手描き風・ストップモーション風に。",
+    params: [{ k: "fps", l: "更新fps", d: 4 }, { k: "amp", l: "振れ幅", d: 20 }],
+    code: "posterizeTime({{fps}});\nwiggle(10, {{amp}})" },
+  { cat: "揺れ・ランダム", title: "カメラの手ブレ風", target: "位置",
+    desc: "ゆっくり大きな揺れ+細かい振動の合成。実写馴染みのAEカメラ揺らしに。",
+    code: "wiggle(0.5, 20) + wiggle(8, 3) - value" },
+  { cat: "揺れ・ランダム", title: "ランダム配置(シード固定)", target: "位置",
+    desc: "レイヤーごとに違う場所へ固定配置。indexがシードなので再生中は動かない。",
+    code: "seedRandom(index, true);\n[random(0, thisComp.width), random(0, thisComp.height)]" },
+
+  { cat: "ループ", title: "キーフレームをループ", target: "キーフレームのあるプロパティ",
+    desc: "最後のキー以降を繰り返し。\"cycle\"=最初から / \"pingpong\"=往復 / \"offset\"=位置を継ぎ足し / \"continue\"=速度を維持して進む。",
+    code: "loopOut(\"cycle\")" },
+  { cat: "ループ", title: "最初のキーの前もループ", target: "キーフレームのあるプロパティ",
+    desc: "イン点より前にも同じ動きを繰り返す。loopOutと併用可。",
+    code: "loopIn(\"cycle\") + loopOut(\"cycle\") - value" },
+
+  { cat: "バウンス・弾み", title: "バウンス(キーフレーム後に弾む)", target: "位置・スケールなど(キーフレーム必須)",
+    desc: "最後のキーフレームに到達した勢いでポヨンと弾む定番。amp=強さ、freq=速さ、decay=減衰。",
+    params: [{ k: "amp", l: "強さ", d: 0.06 }, { k: "freq", l: "速さ", d: 4 }, { k: "decay", l: "減衰", d: 5 }],
+    code: "n = 0;\nif (numKeys > 0){\n  n = nearestKey(time).index;\n  if (key(n).time > time) n--;\n}\nt = (n == 0) ? 0 : time - key(n).time;\nif (n > 0 && t < 1){\n  v = velocityAtTime(key(n).time - thisComp.frameDuration/10);\n  amp = {{amp}}; freq = {{freq}}; decay = {{decay}};\n  value + v*amp*Math.sin(freq*t*2*Math.PI)/Math.exp(decay*t);\n}else{\n  value;\n}" },
+  { cat: "バウンス・弾み", title: "マーカーでポップ(スケール)", target: "スケール",
+    desc: "レイヤーマーカーを打った瞬間にプルンと弾む。音ハメに便利。",
+    params: [{ k: "amp", l: "強さ", d: 15 }, { k: "freq", l: "速さ", d: 5 }, { k: "decay", l: "減衰", d: 8 }],
+    code: "amp = {{amp}}; freq = {{freq}}; decay = {{decay}};\nn = 0;\nif (marker.numKeys > 0){\n  n = marker.nearestKey(time).index;\n  if (marker.key(n).time > time) n--;\n}\nif (n > 0){\n  t = time - marker.key(n).time;\n  s = amp * Math.sin(freq*t*2*Math.PI) / Math.exp(decay*t);\n  value + [s, s];\n}else{\n  value;\n}" },
+  { cat: "バウンス・弾み", title: "振り子(だんだん止まる)", target: "回転(アンカーを上に)",
+    desc: "減衰する振り子運動。看板・ぶら下がりもの・キャラの小物に。",
+    params: [{ k: "amp", l: "振れ角", d: 40 }, { k: "freq", l: "速さ", d: 1.5 }, { k: "decay", l: "減衰", d: 1.2 }],
+    code: "amp = {{amp}}; freq = {{freq}}; decay = {{decay}};\namp * Math.sin(freq*time*2*Math.PI) / Math.exp(decay*time)" },
+
+  { cat: "追従・遅延", title: "他レイヤーを遅れて追いかける", target: "位置",
+    desc: "「リーダー」レイヤーの位置を delay 秒遅れでなぞる。しっぽ・残像・ゆるい追従に。",
+    params: [{ k: "delay", l: "遅れ(秒)", d: 0.2 }],
+    code: "delay = {{delay}};\nthisComp.layer(\"リーダー\").transform.position.valueAtTime(time - delay)" },
+  { cat: "追従・遅延", title: "複製で時間差追従(index)", target: "位置(複製して使う)",
+    desc: "レイヤー番号に応じて遅れが増える。複製するだけで数珠つなぎの動きに。",
+    params: [{ k: "delay", l: "1枚あたりの遅れ", d: 0.1 }],
+    code: "delay = {{delay}} * (index - 1);\nthisComp.layer(\"リーダー\").transform.position.valueAtTime(time - delay)" },
+  { cat: "追従・遅延", title: "他レイヤーの方を向く", target: "回転",
+    desc: "「ターゲット」レイヤーの方向へ常に回転。矢印・目線・砲台などに。",
+    code: "target = thisComp.layer(\"ターゲット\");\nd = target.transform.position - transform.position;\nradiansToDegrees(Math.atan2(d[1], d[0]))" },
+  { cat: "追従・遅延", title: "動きをなめらかに(smooth)", target: "位置など",
+    desc: "トラッキングデータやガタつく動きを平均化してならす。幅=平均する秒数。",
+    params: [{ k: "w", l: "幅(秒)", d: 0.2 }],
+    code: "smooth({{w}}, 5)" },
+  { cat: "追従・遅延", title: "音に反応(オーディオ振幅)", target: "スケールなど",
+    desc: "音声を右クリック→「キーフレーム補助」→「オーディオをキーフレームに変換」してから使用。",
+    params: [{ k: "mul", l: "反応の強さ", d: 0.5 }],
+    code: "amp = thisComp.layer(\"オーディオ振幅\").effect(\"両方のチャンネル\")(\"スライダー\");\nvalue + [amp, amp] * {{mul}}" },
+
+  { cat: "テキスト・数字", title: "カウントアップ数字", target: "ソーステキスト",
+    desc: "時間経過で数字が増える。桁区切りカンマ付き。売上・カウンター演出に。",
+    params: [{ k: "rate", l: "増加/秒", d: 100 }],
+    code: "rate = {{rate}};\nn = Math.floor(time * rate);\nn.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, \",\")" },
+  { cat: "テキスト・数字", title: "スライダーの値を表示", target: "ソーステキスト",
+    desc: "「スライダー制御」をテキストに適用し、スライダーにキーフレームを打って数字アニメ。カンマ付き。",
+    code: "n = effect(\"スライダー制御\")(\"スライダー\");\nMath.round(n).toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, \",\")" },
+  { cat: "テキスト・数字", title: "タイムコード表示", target: "ソーステキスト",
+    desc: "分:秒:フレームを表示。撮影用の擬似TC・タイマー演出に。",
+    code: "t = Math.max(time, 0);\nm = Math.floor(t/60);\ns = Math.floor(t%60);\nf = Math.floor((t%1)/thisComp.frameDuration);\nfunction p(n){ return (\"0\"+n).slice(-2); }\np(m)+\":\"+p(s)+\":\"+p(f)" },
+  { cat: "テキスト・数字", title: "タイプライター(1文字ずつ)", target: "ソーステキスト",
+    desc: "イン点から指定秒かけて1文字ずつ表示。テキストは1行目で書き換え。",
+    params: [{ k: "dur", l: "表示秒数", d: 2 }],
+    code: "str = \"ここに表示したい文章\";\nchars = Math.floor(linear(time, inPoint, inPoint + {{dur}}, 0, str.length));\nstr.substr(0, chars)" },
+
+  { cat: "配置・整列", title: "画面中央に配置", target: "位置",
+    desc: "コンプサイズが変わっても常にど真ん中。テンプレ作りの基本。",
+    code: "[thisComp.width/2, thisComp.height/2]" },
+  { cat: "配置・整列", title: "indexで横に等間隔に並べる", target: "位置(複製して使う)",
+    desc: "複製するだけで等間隔に整列。gapを負にすると逆方向。",
+    params: [{ k: "gap", l: "間隔(px)", d: 150 }],
+    code: "gap = {{gap}};\n[thisComp.width/2 + (index-1)*gap, value[1]]" },
+  { cat: "配置・整列", title: "indexで時間差フェードイン", target: "不透明度(複製して使う)",
+    desc: "レイヤー番号順に少しずつ遅れてフェードイン。リスト・箇条書きの出しに。",
+    params: [{ k: "delay", l: "1枚あたりの遅れ", d: 0.15 }, { k: "dur", l: "フェード秒", d: 0.5 }],
+    code: "delay = {{delay}}; dur = {{dur}};\nt = time - inPoint - (index-1)*delay;\nlinear(t, 0, dur, 0, 100)" },
+  { cat: "配置・整列", title: "テキスト幅に合わせる下線・座布団", target: "シェイプの「サイズ」",
+    desc: "「テキスト」レイヤーの幅+余白に自動追従。文字を打ち替えても伸縮する。",
+    params: [{ k: "pad", l: "左右余白", d: 40 }],
+    code: "t = thisComp.layer(\"テキスト\");\nr = t.sourceRectAtTime(time, false);\n[r.width + {{pad}}, value[1]]" },
+
+  { cat: "回転・軌道", title: "等速でずっと回転", target: "回転",
+    desc: "キーフレーム不要の等速回転。ローディング・歯車・レコードに。",
+    params: [{ k: "speed", l: "度/秒", d: 90 }],
+    code: "time * {{speed}}" },
+  { cat: "回転・軌道", title: "円運動(周回)", target: "位置",
+    desc: "コンプ中央を中心に円軌道で回る。半径と速さを調整。",
+    params: [{ k: "r", l: "半径(px)", d: 200 }, { k: "speed", l: "周/秒", d: 0.5 }],
+    code: "r = {{r}}; speed = {{speed}};\ncenter = [thisComp.width/2, thisComp.height/2];\ncenter + [Math.cos(time*speed*2*Math.PI)*r, Math.sin(time*speed*2*Math.PI)*r]" },
+  { cat: "回転・軌道", title: "縦横比を固定してスケール", target: "スケール",
+    desc: "X側の値だけで縦横が連動。スライダー1本でサイズ調整したいときにも。",
+    code: "[value[0], value[0]]" },
+
+  { cat: "時間・その他", title: "点滅(パカパカ)", target: "不透明度",
+    desc: "指定回数/秒でON/OFF。警告表示・カーソル・ネオンに。",
+    params: [{ k: "freq", l: "回数/秒", d: 4 }],
+    code: "Math.sin(time * {{freq}} * Math.PI * 2) > 0 ? 100 : 0" },
+  { cat: "時間・その他", title: "コマ落ち(fpsを落とす)", target: "任意のプロパティ",
+    desc: "そのプロパティの更新を指定fpsに間引く。全体はエフェクトの「ポスタリゼーション時間」でも可。",
+    params: [{ k: "fps", l: "fps", d: 12 }],
+    code: "posterizeTime({{fps}});\nvalue" },
+  { cat: "時間・その他", title: "別プロパティにリンク(範囲制限つき)", target: "任意のプロパティ",
+    desc: "他レイヤーの値を利用しつつclampで上下限を保証。連動UIや安全弁に。",
+    code: "clamp(thisComp.layer(\"A\").transform.opacity, 20, 80)" },
+  { cat: "時間・その他", title: "チェックボックスで表示切替", target: "不透明度",
+    desc: "「チェックボックス制御」でON/OFF。テンプレの表示スイッチに。",
+    code: "effect(\"チェックボックス制御\")(\"チェックボックス\") == 1 ? 100 : 0" },
+];
+LIB.forEach((e, i) => e.id = "lib" + i);
+
+/* ---------- state ---------- */
+let state = { lang: "jp", favs: [], my: [], cat: "すべて", pvals: {} };
+try { Object.assign(state, JSON.parse(localStorage.getItem(LS_KEY) || "{}")); } catch (e) {}
+function save() { try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {} }
+
+function toEnglish(code) {
+  let s = code;
+  for (const [jp, en] of JP2EN) s = s.split(jp).join(en);
+  return s;
+}
+function renderCode(e) {
+  let code = e.code;
+  for (const p of e.params || []) {
+    const v = (state.pvals[e.id] || {})[p.k];
+    code = code.split("{{" + p.k + "}}").join(v != null && v !== "" ? v : p.d);
+  }
+  return state.lang === "en" ? toEnglish(code) : code;
+}
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.style.display = "block";
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { t.style.display = "none"; }, 1800);
+}
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast("コピーしました");
+  } catch (err) {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+    toast("コピーしました");
+  }
+}
+
+/* ---------- top controls ---------- */
+function renderLang() {
+  $("langToggle").innerHTML = state.lang === "jp"
+    ? "エフェクト名: <b>日本語版AE</b>"
+    : "エフェクト名: <b>英語版AE</b>";
+}
+$("langToggle").addEventListener("click", () => {
+  state.lang = state.lang === "jp" ? "en" : "jp";
+  save(); renderLang(); renderList();
+});
+$("search").addEventListener("input", renderList);
+
+function renderCats() {
+  const box = $("cats");
+  box.textContent = "";
+  for (const c of ["すべて", "★お気に入り", ...CATS]) {
+    const b = document.createElement("button");
+    b.textContent = c;
+    if (state.cat === c) b.classList.add("sel");
+    b.addEventListener("click", () => { state.cat = c; save(); renderCats(); renderList(); });
+    box.appendChild(b);
+  }
+}
+
+/* ---------- library list ---------- */
+function renderList() {
+  const list = $("list");
+  list.textContent = "";
+  const q = $("search").value.trim().toLowerCase();
+  let items = LIB;
+  if (state.cat === "★お気に入り") items = items.filter(e => state.favs.includes(e.id));
+  else if (state.cat !== "すべて") items = items.filter(e => e.cat === state.cat);
+  if (q) items = items.filter(e =>
+    (e.title + e.desc + e.code + e.cat + e.target).toLowerCase().includes(q));
+
+  if (!items.length) {
+    const d = document.createElement("div");
+    d.id = "empty";
+    d.textContent = "該当なし";
+    list.appendChild(d);
+    return;
+  }
+  for (const e of items) list.appendChild(expCard(e));
+}
+
+function expCard(e) {
+  const card = document.createElement("div");
+  card.className = "exp";
+
+  const head = document.createElement("div");
+  head.className = "ehead";
+  const t = document.createElement("div");
+  t.className = "t";
+  t.textContent = e.title;
+  const cat = document.createElement("span");
+  cat.className = "cat";
+  cat.textContent = e.cat;
+  const fav = document.createElement("button");
+  fav.className = "fav" + (state.favs.includes(e.id) ? " on" : "");
+  fav.textContent = "★";
+  fav.addEventListener("click", () => {
+    state.favs = state.favs.includes(e.id)
+      ? state.favs.filter(x => x !== e.id)
+      : [...state.favs, e.id];
+    save();
+    fav.classList.toggle("on");
+    if (state.cat === "★お気に入り") renderList();
+  });
+  head.append(t, cat, fav);
+
+  const desc = document.createElement("div");
+  desc.className = "desc";
+  desc.textContent = e.desc;
+  const target = document.createElement("div");
+  target.className = "target";
+  target.textContent = "適用先: " + e.target;
+
+  card.append(head, desc, target);
+
+  const codeRow = document.createElement("div");
+  codeRow.className = "codeRow";
+  const pre = document.createElement("pre");
+  pre.textContent = renderCode(e);
+
+  if (e.params) {
+    const ps = document.createElement("div");
+    ps.className = "params";
+    for (const p of e.params) {
+      const label = document.createElement("label");
+      label.textContent = p.l;
+      const inp = document.createElement("input");
+      inp.inputMode = "decimal";
+      inp.value = (state.pvals[e.id] || {})[p.k] ?? p.d;
+      inp.addEventListener("input", () => {
+        state.pvals[e.id] = state.pvals[e.id] || {};
+        state.pvals[e.id][p.k] = inp.value;
+        save();
+        pre.textContent = renderCode(e);
+      });
+      label.appendChild(inp);
+      ps.appendChild(label);
+    }
+    card.appendChild(ps);
+  }
+
+  const cp = document.createElement("button");
+  cp.className = "copyBtn";
+  cp.textContent = "コピー";
+  cp.addEventListener("click", () => copyText(renderCode(e)));
+  codeRow.append(pre, cp);
+  card.appendChild(codeRow);
+  return card;
+}
+
+/* ---------- my snippets ---------- */
+function renderMy() {
+  const box = $("myList");
+  box.textContent = "";
+  if (!state.my.length) {
+    const d = document.createElement("div");
+    d.style.cssText = "color:var(--dim);font-size:13px;";
+    d.textContent = "現場でよく使う自作エクスプレッションをここに保存できます。";
+    box.appendChild(d);
+    return;
+  }
+  for (const m of state.my) {
+    const card = document.createElement("div");
+    card.className = "exp";
+    const title = document.createElement("input");
+    title.className = "myTitle";
+    title.placeholder = "タイトル(例: ○○案件のカウンター)";
+    title.value = m.title;
+    title.addEventListener("input", () => { m.title = title.value; save(); });
+    const area = document.createElement("textarea");
+    area.className = "myArea";
+    area.placeholder = "// エクスプレッションを貼り付け";
+    area.value = m.code;
+    area.addEventListener("input", () => { m.code = area.value; save(); });
+    const btns = document.createElement("div");
+    btns.className = "myBtns";
+    const cp = document.createElement("button");
+    cp.className = "cp";
+    cp.textContent = "コピー";
+    cp.addEventListener("click", () => copyText(m.code));
+    const del = document.createElement("button");
+    del.className = "del";
+    del.textContent = "削除";
+    del.addEventListener("click", () => {
+      if (!confirm("「" + (m.title || "(無題)") + "」を削除しますか?")) return;
+      state.my = state.my.filter(x => x.id !== m.id);
+      save(); renderMy();
+    });
+    btns.append(cp, del);
+    card.append(title, area, btns);
+    box.appendChild(card);
+  }
+}
+$("addMy").addEventListener("click", () => {
+  state.my.unshift({ id: newId(), title: "", code: "" });
+  save(); renderMy();
+  $("myList").querySelector(".myTitle")?.focus();
+});
+
+/* ---------- boot ---------- */
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+renderLang();
+renderCats();
+renderList();
+renderMy();
+</script>
+</body>
+</html>
