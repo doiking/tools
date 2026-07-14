@@ -570,6 +570,27 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
+/* 複製したカットでも3Dの続き編集ができるよう、shot側のリンク済みシーンも複製する */
+function cloneShotScenes(pairs, newBoardId) {
+  try {
+    const raw = localStorage.getItem("shot.v1");
+    if (!raw) return;
+    const shot = JSON.parse(raw);
+    if (!shot || !Array.isArray(shot.cuts)) return;
+    let changed = false;
+    for (const p of pairs) {
+      const src = shot.cuts.find(c => c.sbRef && c.sbRef.cutId === p.oldCutId);
+      if (!src) continue;
+      const copy = JSON.parse(JSON.stringify(src));
+      copy.id = newId();
+      copy.sbRef = { boardId: newBoardId, cutId: p.newCutId };
+      shot.cuts.push(copy);
+      changed = true;
+    }
+    if (changed) localStorage.setItem("shot.v1", JSON.stringify(shot));
+  } catch (e) {}
+}
+
 function toast(msg) {
   const t = $("toast");
   t.textContent = msg;
@@ -616,7 +637,13 @@ $("dupBoard").addEventListener("click", () => {
   const c = JSON.parse(JSON.stringify(board()));
   c.id = newId();
   c.title = (c.title || "(無題)") + " のコピー";
-  for (const cut of c.cuts) cut.id = newId();
+  const pairs = [];
+  for (const cut of c.cuts) {
+    const oldCutId = cut.id;
+    cut.id = newId();
+    pairs.push({ oldCutId, newCutId: cut.id });
+  }
+  cloneShotScenes(pairs, c.id);
   state.boards.push(c); state.currentId = c.id;
   save(); renderAll();
 });
@@ -881,6 +908,7 @@ function cutCard(c, i) {
     mkBtn("⧉", "カットを複製", "", () => {
       const copy = JSON.parse(JSON.stringify(c));
       copy.id = newId();
+      cloneShotScenes([{ oldCutId: c.id, newCutId: copy.id }], board().id);
       board().cuts.splice(i + 1, 0, copy);
       save(); renderAll();
     }),
@@ -982,7 +1010,13 @@ $("jsonFileIn").addEventListener("change", async () => {
     if (!b.cuts) throw new Error("bad");
     fixBoard(b);
     b.id = newId();
-    for (const c of b.cuts) c.id = newId();
+    const pairs = [];
+    for (const c of b.cuts) {
+      const oldCutId = c.id;
+      c.id = newId();
+      pairs.push({ oldCutId, newCutId: c.id });
+    }
+    cloneShotScenes(pairs, b.id); // 同じ端末に3Dシーンがあれば読込分にもリンク
     state.boards.push(b);
     state.currentId = b.id;
     save(); renderAll();
