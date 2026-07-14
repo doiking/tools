@@ -27,24 +27,27 @@
     color: var(--fg);
     font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
     touch-action: manipulation;
-    padding: calc(10px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
   }
   button { font-family: inherit; }
 
-  /* ---------- 左サイドバー + メイン ---------- */
-  #layout { display: flex; gap: 14px; align-items: flex-start; }
+  /* ---------- 左サイドバー + メイン(アプリ型: 左端に全高で固定) ---------- */
+  #layout { display: flex; align-items: flex-start; }
   #side {
-    width: 216px; flex: none;
-    position: sticky; top: 10px;
-    max-height: calc(100dvh - 20px);
+    width: 224px; flex: none;
+    position: sticky; top: 0;
+    height: 100dvh;
     overflow-y: auto;
     display: flex; flex-direction: column; gap: 8px;
     background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 12px;
+    border-right: 1px solid var(--line);
+    padding: calc(12px + env(safe-area-inset-top)) 12px calc(14px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
   }
-  #sideTop { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+  #sideTop {
+    display: flex; align-items: center; gap: 8px;
+    margin: 0 -12px;
+    padding: 2px 12px 12px;
+    border-bottom: 1px solid var(--line);
+  }
   #sideTop img { height: 20px; }
   #sideTop h1 { font-size: 15px; font-weight: 700; margin: 0; }
   #side .ptitle { font-size: 11px; letter-spacing: .08em; color: var(--dim); margin: 8px 0 0; }
@@ -81,8 +84,12 @@
   #total { font-size: 12px; color: var(--dim); line-height: 1.7; }
   #total b { color: var(--accent); font-size: 14px; font-variant-numeric: tabular-nums; }
   #addCol { display: none; } /* デスクトップは表ヘッダ右端の＋を使う */
+  #side .ptitle.bottom { margin-top: auto; } /* 書き出しを最下部に */
 
-  #main { flex: 1; min-width: 0; }
+  #main {
+    flex: 1; min-width: 0;
+    padding: calc(10px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) 14px;
+  }
   #grid {
     display: flex;
     flex-direction: column;
@@ -210,7 +217,12 @@
   /* スマホ: サイドバーを上部ブロックに */
   @media (max-width: 700px) {
     #layout { flex-direction: column; }
-    #side { position: static; width: auto; max-height: none; align-self: stretch; }
+    #side {
+      position: static; width: auto; height: auto; max-height: none; align-self: stretch;
+      border-right: none; border-bottom: 1px solid var(--line);
+    }
+    #main { padding: 10px 12px calc(20px + env(safe-area-inset-bottom)); }
+    #side .ptitle.bottom { margin-top: 0; }
     #addCol { display: block; }
     #boardList { flex-direction: row; flex-wrap: wrap; max-height: none; }
     .bitem { max-width: 46%; }
@@ -353,7 +365,7 @@
   <div id="total"></div>
   <!-- ＋列はデスクトップでは表ヘッダ右端の「＋」から。サイドバーのボタンはスマホ用 -->
 
-  <div class="ptitle">書き出し</div>
+  <div class="ptitle bottom">書き出し</div>
   <div class="btnRow">
     <button id="jsonOut" title="バックアップ">JSON保存</button>
     <button id="jsonIn" title="復元">読込</button>
