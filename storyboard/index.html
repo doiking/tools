@@ -49,7 +49,15 @@
   #topbar button.acc { background: var(--accent); color: #17130a; border-color: var(--accent); font-weight: 700; }
   #topbar button.danger { color: #ff8484; }
   .spacer { flex: 1; }
-  #total { font-size: 13px; color: var(--dim); white-space: nowrap; }
+  .vsep { width: 1px; align-self: stretch; background: var(--line); margin: 4px 2px; }
+  #total {
+    font-size: 12.5px; color: var(--dim); white-space: nowrap;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 8px 11px;
+  }
+  #total b { color: var(--accent); font-size: 14px; font-variant-numeric: tabular-nums; }
 
   #grid {
     display: flex;
@@ -62,10 +70,16 @@
     display: grid;
     grid-template-columns: var(--sbcols);
     gap: 0;
-    padding: 0 2px;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
     font-size: 11px; color: var(--dim); letter-spacing: .08em;
+    box-shadow: 0 -14px 0 14px var(--bg); /* スクロール時に上の隙間からカードが覗くのを隠す */
   }
-  #listHead span { padding: 2px 8px; }
+  #listHead span { padding: 9px 8px; }
   #listHead .colHead { display: flex; align-items: center; gap: 4px; }
   #listHead .colHead a { color: var(--accent); cursor: pointer; text-decoration: underline dotted; }
   #listHead .colHead button {
@@ -81,10 +95,13 @@
     display: grid;
     grid-template-columns: var(--sbcols);
     align-items: stretch;
+    transition: border-color .15s;
   }
+  .card:focus-within { border-color: #8a7420; } /* 編集中のカットを示す控えめな黄 */
   .cno {
     display: flex; align-items: center; justify-content: center;
-    font-size: 15px; font-weight: 800; color: var(--accent);
+    font-size: 16px; font-weight: 800; color: var(--accent);
+    background: #17171d;
     border-right: 1px solid #26262c;
   }
   .frame {
@@ -145,12 +162,14 @@
     border: 1px solid var(--line); border-radius: 7px;
     font-size: 13px; padding: 0;
   }
+  .ctrl button:hover, .ctrl button:active { border-color: var(--accent); }
   .ctrl button.del { color: #ff8484; }
   .ctrl button.b3d:active { background: var(--accent); color: #17130a; }
 
   /* スマホ: ツールバーを整理(操作をコンパクトに、破壊的な「削除」は末尾へ) */
   @media (max-width: 600px) {
     #topbar { gap: 6px; }
+    .vsep { display: none; }
     #topbar button { font-size: 12.5px; padding: 8px 10px; white-space: nowrap; }
     #boardTitle { width: 130px; flex: 1; }
     #topbar select { max-width: 110px; }
@@ -281,9 +300,11 @@
   <h1>絵コンテ</h1>
   <select id="boardSel"></select>
   <input id="boardTitle" placeholder="作品名・シーン名" autocomplete="off">
+  <span class="vsep"></span>
   <button id="newBoard">＋新規</button>
   <button id="dupBoard">複製</button>
   <button id="delBoard" class="danger">削除</button>
+  <span class="vsep"></span>
   <button id="addCol" title="このボードに列を追加(機材・備考など)">＋列</button>
   <span class="spacer"></span>
   <span id="total"></span>
@@ -405,7 +426,13 @@ function renderTop() {
   $("boardTitle").value = board().title;
   const total = board().cuts.reduce((a, c) => a + (parseFloat(c.sec) || 0), 0);
   const m = Math.floor(total / 60), sec = Math.round(total % 60);
-  $("total").textContent = board().cuts.length + "カット ・ 合計 " + (m ? m + "分" : "") + sec + "秒";
+  const t = $("total");
+  t.textContent = "";
+  const bN = document.createElement("b");
+  bN.textContent = board().cuts.length;
+  const bT = document.createElement("b");
+  bT.textContent = (m ? m + "分" : "") + sec + "秒";
+  t.append(bN, "カット ・ 合計 ", bT);
 }
 $("boardSel").addEventListener("change", () => { state.currentId = $("boardSel").value; save(); renderAll(); });
 $("boardTitle").addEventListener("input", () => { board().title = $("boardTitle").value; save(); renderTop(); });
