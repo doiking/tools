@@ -80,6 +80,7 @@
   .btnRow button { flex: 1; }
   #total { font-size: 12px; color: var(--dim); line-height: 1.7; }
   #total b { color: var(--accent); font-size: 14px; font-variant-numeric: tabular-nums; }
+  #addCol { display: none; } /* デスクトップは表ヘッダ右端の＋を使う */
 
   #main { flex: 1; min-width: 0; }
   #grid {
@@ -108,6 +109,15 @@
     border: none; background: transparent; color: var(--dim);
     font-size: 10px; padding: 0 2px; cursor: pointer;
   }
+  #listHead .colAdd { display: flex; align-items: center; justify-content: center; padding: 4px; }
+  #listHead .colAdd button {
+    width: 28px; height: 24px;
+    background: transparent; color: var(--dim);
+    border: 1px dashed var(--line); border-radius: 6px;
+    font-size: 14px; line-height: 1; padding: 0;
+    cursor: pointer;
+  }
+  #listHead .colAdd button:hover, #listHead .colAdd button:active { border-color: var(--accent); color: var(--accent); }
   .cell .lbl.exl { text-decoration: underline dotted; cursor: pointer; }
   .card {
     background: var(--panel);
@@ -192,6 +202,7 @@
   @media (max-width: 700px) {
     #layout { flex-direction: column; }
     #side { position: static; width: auto; max-height: none; align-self: stretch; }
+    #addCol { display: block; }
     #boardList { flex-direction: row; flex-wrap: wrap; max-height: none; }
     .bitem { max-width: 46%; }
   }
@@ -331,6 +342,7 @@
   <div class="ptitle">表</div>
   <button id="addCol" title="このボードに列を追加(機材・備考など)">＋列を追加</button>
   <div id="total"></div>
+  <!-- ＋列はデスクトップでは表ヘッダ右端の「＋」から。サイドバーのボタンはスマホ用 -->
 
   <div class="ptitle">書き出し</div>
   <div class="btnRow">
@@ -576,7 +588,14 @@ function renderGrid() {
     }
   }
   addSpan("秒");
-  addSpan("");
+  const addSp = document.createElement("span");
+  addSp.className = "colAdd";
+  const ab = document.createElement("button");
+  ab.textContent = "＋";
+  ab.title = "列を追加(機材・備考など)";
+  ab.addEventListener("click", addColumn);
+  addSp.appendChild(ab);
+  head.appendChild(addSp);
   g.appendChild(head);
   board().cuts.forEach((c, i) => g.appendChild(cutCard(c, i)));
   const add = document.createElement("button");
@@ -727,7 +746,7 @@ function cutCard(c, i) {
 }
 
 /* ---------- custom columns ---------- */
-$("addCol").addEventListener("click", () => {
+function addColumn() {
   const v = prompt("追加する列の名前(例: パート、機材、備考、T番号)");
   if (v === null) return;
   const name = v.trim();
@@ -747,7 +766,8 @@ $("addCol").addEventListener("click", () => {
   board().colOrder.splice(pos - 1, 0, col.id);
   save(); renderAll();
   toast("列「" + name + "」を追加しました(ヘッダの◀▶で移動できます)");
-});
+}
+$("addCol").addEventListener("click", addColumn);
 
 /* image upload: downscale to fit 960x540 */
 $("fileIn").addEventListener("change", () => {
