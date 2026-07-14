@@ -51,15 +51,7 @@
   #sideTop img { height: 20px; }
   #sideTop h1 { font-size: 15px; font-weight: 700; margin: 0; }
   #side .ptitle { font-size: 11px; letter-spacing: .08em; color: var(--dim); margin: 8px 0 0; }
-  #boardTitle {
-    width: 100%;
-    background: #16161b; color: var(--fg);
-    border: 1px solid var(--line); border-radius: 9px;
-    font-size: 13.5px; font-weight: 600; padding: 9px 10px;
-    -webkit-user-select: text; user-select: text;
-  }
-  #boardTitle:focus { outline: none; border-color: var(--accent); }
-  #boardList { display: flex; flex-direction: column; gap: 2px; max-height: 28vh; overflow-y: auto; }
+  #boardList { display: flex; flex-direction: column; gap: 2px; max-height: 34vh; overflow-y: auto; }
   .bitem {
     padding: 8px 10px;
     border: 1px solid transparent;
@@ -70,6 +62,13 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .bitem.sel { background: #24242c; border-color: var(--accent); color: var(--fg); }
+  input.bitem {
+    width: 100%;
+    font: inherit; font-size: 13px; font-weight: 600;
+    -webkit-user-select: text; user-select: text;
+  }
+  input.bitem:focus { outline: none; }
+  input.bitem::placeholder { color: var(--dim); font-weight: 400; }
   #side button {
     background: #24242c; color: var(--fg);
     border: 1px solid var(--line); border-radius: 9px;
@@ -226,6 +225,7 @@
     #addCol { display: block; }
     #boardList { flex-direction: row; flex-wrap: wrap; max-height: none; }
     .bitem { max-width: 46%; }
+    input.bitem { max-width: none; flex: 1; min-width: 56%; }
   }
   @media (max-width: 700px) {
     #listHead { display: none; }
@@ -388,10 +388,7 @@
   <h1>絵コンテ</h1>
   </div>
 
-  <div class="ptitle">作品名・シーン名</div>
-  <input id="boardTitle" placeholder="作品名・シーン名" autocomplete="off">
-
-  <div class="ptitle">ボード</div>
+  <div class="ptitle">ボード(選択中はそのまま名前を編集できます)</div>
   <div id="boardList"></div>
   <div class="btnRow">
     <button id="newBoard">＋新規</button>
@@ -604,18 +601,27 @@ function renderTop() {
   const list = $("boardList");
   list.textContent = "";
   for (const b of state.boards) {
-    const el = document.createElement("div");
-    el.className = "bitem" + (b.id === state.currentId ? " sel" : "");
-    el.textContent = b.title || "(無題)";
-    el.title = b.title || "(無題)";
-    el.addEventListener("click", () => {
-      if (state.currentId === b.id) return;
-      state.currentId = b.id;
-      save(); renderAll();
-    });
-    list.appendChild(el);
+    if (b.id === state.currentId) {
+      // 選択中のボードはその場で名前を編集できる
+      const inp = document.createElement("input");
+      inp.className = "bitem sel";
+      inp.value = b.title;
+      inp.placeholder = "作品名・シーン名";
+      inp.autocomplete = "off";
+      inp.addEventListener("input", () => { b.title = inp.value; save(); });
+      list.appendChild(inp);
+    } else {
+      const el = document.createElement("div");
+      el.className = "bitem";
+      el.textContent = b.title || "(無題)";
+      el.title = (b.title || "(無題)") + " に切替";
+      el.addEventListener("click", () => {
+        state.currentId = b.id;
+        save(); renderAll();
+      });
+      list.appendChild(el);
+    }
   }
-  $("boardTitle").value = board().title;
   const total = board().cuts.reduce((a, c) => a + (parseFloat(c.sec) || 0), 0);
   const m = Math.floor(total / 60), sec = Math.round(total % 60);
   const t = $("total");
@@ -626,12 +632,12 @@ function renderTop() {
   bT.textContent = (m ? m + "分" : "") + sec + "秒";
   t.append(bN, "カット ・ 合計 ", bT);
 }
-$("boardTitle").addEventListener("input", () => { board().title = $("boardTitle").value; save(); renderTop(); });
 $("newBoard").addEventListener("click", () => {
   const b = newBoard("");
   state.boards.push(b); state.currentId = b.id;
   save(); renderAll();
-  $("boardTitle").focus();
+  const inp = $("boardList").querySelector("input.bitem");
+  if (inp) inp.focus();
 });
 $("dupBoard").addEventListener("click", () => {
   const c = JSON.parse(JSON.stringify(board()));
