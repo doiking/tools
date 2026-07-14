@@ -31,35 +31,56 @@
   }
   button { font-family: inherit; }
 
-  #topbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
-  #topbar img { height: 24px; }
-  #topbar h1 { font-size: 17px; font-weight: 700; margin: 0 6px 0 0; }
-  #topbar select, #boardTitle {
-    background: var(--panel); color: var(--fg);
-    border: 1px solid var(--line); border-radius: 9px;
-    font-size: 14px; padding: 9px 10px;
-  }
-  #boardSel { max-width: 180px; text-overflow: ellipsis; }
-  #boardTitle { width: 200px; font-weight: 600; -webkit-user-select: text; user-select: text; }
-  #boardTitle:focus, select:focus { outline: none; border-color: var(--accent); }
-  #topbar button {
-    background: var(--panel); color: var(--fg);
-    border: 1px solid var(--line); border-radius: 9px;
-    font-size: 13.5px; padding: 9px 12px;
-  }
-  #topbar button.acc { background: var(--accent); color: #17130a; border-color: var(--accent); font-weight: 700; }
-  #topbar button.danger { color: #ff8484; }
-  .spacer { flex: 1; }
-  .vsep { width: 1px; align-self: stretch; background: var(--line); margin: 4px 2px; }
-  #total {
-    font-size: 12.5px; color: var(--dim); white-space: nowrap;
+  /* ---------- 左サイドバー + メイン ---------- */
+  #layout { display: flex; gap: 14px; align-items: flex-start; }
+  #side {
+    width: 216px; flex: none;
+    position: sticky; top: 10px;
+    max-height: calc(100dvh - 20px);
+    overflow-y: auto;
+    display: flex; flex-direction: column; gap: 8px;
     background: var(--panel);
     border: 1px solid var(--line);
-    border-radius: 9px;
-    padding: 8px 11px;
+    border-radius: 14px;
+    padding: 12px;
   }
+  #sideTop { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+  #sideTop img { height: 20px; }
+  #sideTop h1 { font-size: 15px; font-weight: 700; margin: 0; }
+  #side .ptitle { font-size: 11px; letter-spacing: .08em; color: var(--dim); margin: 8px 0 0; }
+  #boardTitle {
+    width: 100%;
+    background: #16161b; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 9px;
+    font-size: 13.5px; font-weight: 600; padding: 9px 10px;
+    -webkit-user-select: text; user-select: text;
+  }
+  #boardTitle:focus { outline: none; border-color: var(--accent); }
+  #boardList { display: flex; flex-direction: column; gap: 2px; max-height: 28vh; overflow-y: auto; }
+  .bitem {
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--dim);
+    cursor: pointer;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .bitem.sel { background: #24242c; color: var(--fg); box-shadow: inset 3px 0 0 var(--accent); }
+  #side button {
+    background: #24242c; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 9px;
+    font-size: 12.5px; font-weight: 600; padding: 9px 6px;
+    white-space: nowrap;
+  }
+  #side button:hover, #side button:active { border-color: var(--accent); }
+  #side button.acc { background: var(--accent); color: #17130a; border-color: var(--accent); font-weight: 700; font-size: 13.5px; }
+  #side button.danger { color: #ff8484; }
+  .btnRow { display: flex; gap: 6px; }
+  .btnRow button { flex: 1; }
+  #total { font-size: 12px; color: var(--dim); line-height: 1.7; }
   #total b { color: var(--accent); font-size: 14px; font-variant-numeric: tabular-nums; }
 
+  #main { flex: 1; min-width: 0; }
   #grid {
     display: flex;
     flex-direction: column;
@@ -166,19 +187,13 @@
   .ctrl button.del { color: #ff8484; }
   .ctrl button.b3d:active { background: var(--accent); color: #17130a; }
 
-  /* スマホ: ツールバーを整理(操作をコンパクトに、破壊的な「削除」は末尾へ) */
-  @media (max-width: 600px) {
-    #topbar { gap: 6px; }
-    .vsep { display: none; }
-    #topbar button { font-size: 12.5px; padding: 8px 10px; white-space: nowrap; }
-    #boardTitle { width: 130px; flex: 1; }
-    #topbar select { max-width: 110px; }
-    #delBoard { order: 8; }
-    #total { order: 9; width: 100%; text-align: right; }
-    #jsonOut { order: 5; }
-    #jsonIn { order: 6; }
-    #printBtn { order: 7; }
-    .spacer { display: none; }
+  /* スマホ: サイドバーを上部ブロックに */
+  @media (max-width: 700px) {
+    #layout { flex-direction: column; }
+    #side { position: static; width: auto; max-height: none; align-self: stretch; }
+    #boardList { flex-direction: row; flex-wrap: wrap; max-height: none; }
+    .bitem { max-width: 46%; }
+    .bitem.sel { box-shadow: inset 0 -2px 0 var(--accent); }
   }
   @media (max-width: 700px) {
     #listHead { display: none; }
@@ -230,7 +245,7 @@
   @page { size: A4 portrait; margin: 12mm 12mm 14mm; }
   @media print {
     body { background: #fff; color: #000; padding: 0; }
-    #topbar, #grid, #addCard, #toast { display: none !important; }
+    #layout, #addCard, #toast { display: none !important; }
     #printView { display: block; }
   }
   #printView .psheet {
@@ -295,25 +310,40 @@
 </style>
 </head>
 <body>
-<div id="topbar">
+<div id="layout">
+<aside id="side">
+  <div id="sideTop">
   <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAABQCAMAAAAA/tP+AAAAPFBMVEX3wRQDAAD50U9AMAW6kQ99YQr74IkSDAHotROceQ3JnRBfSAhPPAYxJATZqRIiGAOrhQ6MbQtuVAn86KfeHrGsAAAGSUlEQVR4nO2c6ZYjJwyFXQEGal/y/u8as4sCnJ45EaG6dX/ZxizmA4EE5ddfpJ7094vUlX793w0gpSIgnYmAdCYC0pkISGciIJ2JgHQmAtKZCEhnIiCdqSUQfoqZGQlxbA0rfpJaAZmudUi1z1Ojuh+lNkDGOw0rxpvU/ii1AML3Ig6tq0H1z1IDIFcVx1urwm/Ao4QORJWtVdCC3YCHCRsI5CEXcfJDzKkFG5Fb8DBhA5kjDhGsE2cAyI7cgocJGcgReSSb3BkQOXCb8DAhA4nW6bbDXSIQgduEhwkXSJwg7JayDdWkny1cIHHHmy3dCwEpChdIXLwzn1yUgBzGxMmf7C7iApGh17MkHpJA94vat3+OcIHEhSKbIXF5AdbsYAQEtfSh1OtW0WQlgfiRgGAquulZhGSppBAQTAH/73YgpWrGjIBgaqx6G8Fi3XdUOwHBFIgjzvDzyX+ahd8ZAcEUmCKQSIgBy+w4hIDgCsZ1mV9HAo89P1b3QNQh3hohMMW5MOIKfsb5aNYhDjJso34TS5/010SWwrM6zDcuxth8hlVv05nt2+kU4vzDrvia0M9D4OGHtHHEwKN0XGiBHH4TJn0seIJoh8X1lguJidc2OydUR5XDET5zFbgVC6S8p+t2+SxwT77FjYgbQG6W89fk6sDpKSf0E8Mpeut6SryHYzhiv0rHt6bfYee7rhdDIhfNd5u1C2zn5AHGwJJkhof7Myww7vQO2Fxp6nYu7OjHCO4BDv6Z+pae4cps7KfyLHb/wm3D7DZgZWxNupoHf0ZCiquv1OJUEdIKoEgmk8J8QGcWwuZnNnP6C+YXphpcclDLUFBxerw8EGOSTtuDIMGYPJ4aDtvB8j3IlR/0OrcbB94aHVnKIM9Qh/RN1UXbhc0aKjsPnWGUYhK2JkQ1uZeV2IEh6ahMDIzYGfb8xJg7BLbD2PeLwW2Ni3P/bW7TueH0S4EU17+2AAHruEDBpnK3gJuijJXk2FfJ2lyUU/DI1mqtIGGgT6ZkKkTtEIgAZuQAw9rSCceRWYqbeQokGIZ+RnJQLgOvkdXoKulWuAy0F5EkfkgFyJwBcSNZwQwiBwJTfIgA0B2zOcVAo9qc/Te6SprbLIOkMP8TIJU4isiA+Dew23kVyAFTwJQ0oP0wyYC0uYrcAkgwWGs2T5bPnnrFbR+rQNYqEFZLAUDMy5MbX1OwO5A//fm/pwZANuiMids938xX/wREvT3rhbmdbxFItdu/BCSfw1exHZjCBxI8Q9cDY4pE3ojUgUzp9rkFELd5+1ZAAo8YZ0+RyPSkpApkHFJhAbEmy6rYKFxhAwk84KZRJRfi05OSGhCzEO8n3xTn0F34z4GUHI3vAyTEFm9xxGTblWx/a0B0QT5YzzGBlC5Sfh8gIb50H3cw5siyHPmbCc6y3wASyt7vKbVdVun5iG8DJNj93MuN14DS8/YciJkWSR/mfshYyJ0CGb4AxG7Pa2cC38APUWEaFAwziKZAHxh6EqCzYCAjCTOlDnk2D34LyFizWTCegyxUIKfvcVlIBNetYRfAjrsDkTC4mEwXUcj9L0D8rg92th1A4UhwXKf8O8hCBRK2t8Xn1qLb/hmI6R+Lbx85P9zU8kHAz0DCoT1MOSAqGDh0I2gV+sxWnw/C4OLzgYSrJeVHQOY8+bghdHsC9QLbgyDtUsYn5jQ2keyxeXwdytVTNebZQB3TrU2xGeCcEfc43QgTSHTlikBE/jvvV+Kdb67HJtiW7aPwH6fMWZJ7iq9juS+Yh4M63fi/Oa0a0xnfN3i2CBOI+PxDYiQkGAPOnBa7zk9CvF9bXso+LMou3Uk6omV2VovLYP4W4kxzm3/ymHXhhy/XLBzhjTFnysTH4gOQx8VsRUzYYjYWWtXAarUBUnwmJ64hiG14nNoAKe3t4y6LHlUHagSkYLMKFovUalEvXGqIifSMIRQmEOD6ZUTi1kXSP2dBoTqGie/AQIDkYFVSP12oQPiQSC5C6PvSSzX2Tmr2nHpFknjchHwekl+QS7TSv/zdhX2EKz7gkPQvJ7nwLznkUUGrXdCfyRXU4l7Wmd8jXS8yVmU1utvLR3Ex/5+9I7nmddE/W3cmAtKZCEhnIiCdiYB0JgLSmQhIZyIgnYmAdCYC0pkISGf69Q+VTy88x/peXAAAAABJRU5ErkJggg==" alt="8hammer">
   <h1>絵コンテ</h1>
-  <select id="boardSel"></select>
-  <input id="boardTitle" placeholder="作品名・シーン名" autocomplete="off">
-  <span class="vsep"></span>
-  <button id="newBoard">＋新規</button>
-  <button id="dupBoard">複製</button>
-  <button id="delBoard" class="danger">削除</button>
-  <span class="vsep"></span>
-  <button id="addCol" title="このボードに列を追加(機材・備考など)">＋列</button>
-  <span class="spacer"></span>
-  <span id="total"></span>
-  <button id="jsonOut" title="バックアップ">JSON保存</button>
-  <button id="jsonIn" title="復元">読込</button>
-  <button id="printBtn" class="acc">🖨 印刷 / PDF</button>
-</div>
+  </div>
 
-<div id="grid"></div>
+  <div class="ptitle">作品名・シーン名</div>
+  <input id="boardTitle" placeholder="作品名・シーン名" autocomplete="off">
+
+  <div class="ptitle">ボード</div>
+  <div id="boardList"></div>
+  <div class="btnRow">
+    <button id="newBoard">＋新規</button>
+    <button id="dupBoard">複製</button>
+    <button id="delBoard" class="danger">削除</button>
+  </div>
+
+  <div class="ptitle">表</div>
+  <button id="addCol" title="このボードに列を追加(機材・備考など)">＋列を追加</button>
+  <div id="total"></div>
+
+  <div class="ptitle">書き出し</div>
+  <div class="btnRow">
+    <button id="jsonOut" title="バックアップ">JSON保存</button>
+    <button id="jsonIn" title="復元">読込</button>
+  </div>
+  <button id="printBtn" class="acc">🖨 印刷 / PDF</button>
+</aside>
+
+<main id="main">
+  <div id="grid"></div>
+</main>
+</div>
 
 <div id="printView"></div>
 <div id="toast"></div>
@@ -339,7 +369,7 @@ function newCut(partial) {
   return Object.assign({ id: newId(), img: null, sec: 3, action: "", dialog: "", ex: {} }, partial || {});
 }
 function newBoard(title) {
-  return { id: newId(), title: title || "", cols: [], colOrder: ["action", "dialog"], cuts: [newCut()] };
+  return { id: newId(), title: title || "", cols: [], colNames: {}, colOrder: ["action", "dialog"], cuts: [newCut()] };
 }
 let state = { boards: [], currentId: null };
 try { const raw = localStorage.getItem(LS_KEY); if (raw) state = JSON.parse(raw); } catch (e) {}
@@ -364,7 +394,7 @@ function middleCols() {
   const out = [];
   for (const tok of board().colOrder) {
     if (BUILTIN_COLS[tok]) {
-      out.push({ kind: "b", key: tok, def: BUILTIN_COLS[tok], label: board().colNames[tok] || BUILTIN_COLS[tok].label });
+      out.push({ kind: "b", key: tok, def: BUILTIN_COLS[tok], label: (board().colNames || {})[tok] || BUILTIN_COLS[tok].label });
     } else {
       const col = board().cols.find(x => x.id === tok);
       if (col) out.push({ kind: "c", col, label: col.label });
@@ -414,15 +444,19 @@ function toast(msg) {
 
 /* ---------- board selector ---------- */
 function renderTop() {
-  const s = $("boardSel");
-  s.textContent = "";
+  const list = $("boardList");
+  list.textContent = "";
   for (const b of state.boards) {
-    const op = document.createElement("option");
-    op.value = b.id;
-    const t = b.title || "(無題)";
-    op.textContent = t.length > 20 ? t.slice(0, 20) + "…" : t; // 長いタイトルで伸びない
-    if (b.id === state.currentId) op.selected = true;
-    s.appendChild(op);
+    const el = document.createElement("div");
+    el.className = "bitem" + (b.id === state.currentId ? " sel" : "");
+    el.textContent = b.title || "(無題)";
+    el.title = b.title || "(無題)";
+    el.addEventListener("click", () => {
+      if (state.currentId === b.id) return;
+      state.currentId = b.id;
+      save(); renderAll();
+    });
+    list.appendChild(el);
   }
   $("boardTitle").value = board().title;
   const total = board().cuts.reduce((a, c) => a + (parseFloat(c.sec) || 0), 0);
@@ -435,7 +469,6 @@ function renderTop() {
   bT.textContent = (m ? m + "分" : "") + sec + "秒";
   t.append(bN, "カット ・ 合計 ", bT);
 }
-$("boardSel").addEventListener("change", () => { state.currentId = $("boardSel").value; save(); renderAll(); });
 $("boardTitle").addEventListener("input", () => { board().title = $("boardTitle").value; save(); renderTop(); });
 $("newBoard").addEventListener("click", () => {
   const b = newBoard("");
