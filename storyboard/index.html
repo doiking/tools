@@ -33,7 +33,7 @@
   /* ---------- 左サイドバー + メイン(アプリ型: 左端に全高で固定) ---------- */
   #layout { display: flex; align-items: flex-start; }
   #side {
-    width: 224px; flex: none;
+    width: 280px; flex: none;
     position: sticky; top: 0;
     height: 100dvh;
     overflow-y: auto;
@@ -60,23 +60,40 @@
   }
   #prodName:focus { outline: none; border-color: var(--accent); }
   #boardList { display: flex; flex-direction: column; gap: 2px; max-height: 30vh; overflow-y: auto; }
-  .bitem {
-    padding: 8px 10px;
+  .brow {
+    display: flex; align-items: center;
     border: 1px solid transparent;
     border-radius: 8px;
+    padding-right: 4px;
+  }
+  .brow.sel { background: #24242c; border-color: var(--accent); }
+  .bname {
+    flex: 1; min-width: 0;
+    padding: 8px 10px;
     font-size: 13px;
     color: var(--dim);
     cursor: pointer;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .bitem.sel { background: #24242c; border-color: var(--accent); color: var(--fg); }
-  input.bitem {
-    width: 100%;
+  .brow.sel .bname { color: var(--fg); }
+  input.bname {
+    background: transparent; border: none;
     font: inherit; font-size: 13px; font-weight: 600;
+    color: var(--fg);
     -webkit-user-select: text; user-select: text;
   }
-  input.bitem:focus { outline: none; }
-  input.bitem::placeholder { color: var(--dim); font-weight: 400; }
+  input.bname:focus { outline: none; }
+  input.bname::placeholder { color: var(--dim); font-weight: 400; }
+  .btools { display: flex; gap: 2px; opacity: .3; flex: none; }
+  .brow:hover .btools, .brow.sel .btools { opacity: 1; }
+  #side .btools button {
+    width: 24px; height: 24px; padding: 0;
+    background: transparent; border: none;
+    color: var(--dim); font-size: 12px; line-height: 1;
+    border-radius: 6px; cursor: pointer;
+  }
+  #side .btools button:hover { color: var(--accent); }
+  #side .btools button.danger:hover { color: #ff8484; }
   #side button {
     background: #24242c; color: var(--fg);
     border: 1px solid var(--line); border-radius: 9px;
@@ -239,8 +256,8 @@
     #side .ptitle.bottom { margin-top: 0; }
     #addCol { display: block; }
     #boardList { flex-direction: row; flex-wrap: wrap; max-height: none; }
-    .bitem { max-width: 46%; }
-    input.bitem { max-width: none; flex: 1; min-width: 56%; }
+    .brow { max-width: 48%; }
+    .brow.sel { max-width: none; width: 100%; }
   }
   @media (max-width: 700px) {
     #listHead { display: none; }
@@ -410,8 +427,6 @@
   <div class="ptitle rowHead">シーン
     <span class="ptools">
       <button id="newBoard" title="新規シーン">＋</button>
-      <button id="dupBoard" title="シーンを複製">⧉</button>
-      <button id="delBoard" class="danger" title="シーンを削除">✕</button>
     </span>
   </div>
   <div id="boardList"></div>
@@ -623,33 +638,72 @@ function toast(msg) {
 }
 
 /* ---------- board selector ---------- */
+function duplicateBoard(b) {
+  const c = JSON.parse(JSON.stringify(b));
+  c.id = newId();
+  c.title = (c.title || "(無題)") + " のコピー";
+  const pairs = [];
+  for (const cut of c.cuts) {
+    const oldCutId = cut.id;
+    cut.id = newId();
+    pairs.push({ oldCutId, newCutId: cut.id });
+  }
+  cloneShotScenes(pairs, c.id);
+  state.boards.splice(state.boards.indexOf(b) + 1, 0, c);
+  state.currentId = c.id;
+  save(); renderAll();
+}
+
+function deleteBoard(b) {
+  if (!confirm("「" + fullTitle(b) + "」を削除しますか?")) return;
+  state.boards = state.boards.filter(x => x.id !== b.id);
+  if (!state.boards.length) state.boards = [newBoard("")];
+  if (!state.boards.find(x => x.id === state.currentId)) state.currentId = state.boards[0].id;
+  save(); renderAll();
+}
+
 function renderTop() {
   const list = $("boardList");
   list.textContent = "";
   for (const b of state.boards) {
+    const row = document.createElement("div");
+    row.className = "brow" + (b.id === state.currentId ? " sel" : "");
+    let nameEl;
     if (b.id === state.currentId) {
-      // 選択中のボードはその場で名前を編集できる
-      const inp = document.createElement("input");
-      inp.className = "bitem sel";
-      inp.value = b.title;
-      inp.placeholder = "作品名・シーン名";
-      inp.autocomplete = "off";
-      inp.addEventListener("input", () => { b.title = inp.value; save(); });
-      list.appendChild(inp);
+      // 選択中のシーンはその場で名前を編集できる
+      nameEl = document.createElement("input");
+      nameEl.className = "bname";
+      nameEl.value = b.title;
+      nameEl.placeholder = "シーン名";
+      nameEl.autocomplete = "off";
+      nameEl.addEventListener("input", () => { b.title = nameEl.value; save(); });
     } else {
-      const el = document.createElement("div");
-      el.className = "bitem";
-      el.dataset.id = b.id;
+      nameEl = document.createElement("div");
+      nameEl.className = "bname";
+      nameEl.dataset.id = b.id;
       // 別作品のシーンには作品名を前置して区別
       const prefix = b.prod && b.prod !== board().prod ? b.prod + " / " : "";
-      el.textContent = prefix + (b.title || "(無題)");
-      el.title = fullTitle(b) + " に切替";
-      el.addEventListener("click", () => {
+      nameEl.textContent = prefix + (b.title || "(無題)");
+      nameEl.title = fullTitle(b) + " に切替";
+      nameEl.addEventListener("click", () => {
         state.currentId = b.id;
         save(); renderAll();
       });
-      list.appendChild(el);
     }
+    const tools = document.createElement("span");
+    tools.className = "btools";
+    const dup = document.createElement("button");
+    dup.textContent = "⧉";
+    dup.title = "このシーンを複製";
+    dup.addEventListener("click", (e) => { e.stopPropagation(); duplicateBoard(b); });
+    const del = document.createElement("button");
+    del.textContent = "✕";
+    del.className = "danger";
+    del.title = "このシーンを削除";
+    del.addEventListener("click", (e) => { e.stopPropagation(); deleteBoard(b); });
+    tools.append(dup, del);
+    row.append(nameEl, tools);
+    list.appendChild(row);
   }
   $("prodName").value = board().prod || "";
   const total = board().cuts.reduce((a, c) => a + (parseFloat(c.sec) || 0), 0);
@@ -666,7 +720,7 @@ $("prodName").addEventListener("input", () => {
   board().prod = $("prodName").value;
   save();
   // 一覧の作品名プレフィックスだけ更新(再描画するとフォーカスが壊れるため)
-  for (const el of $("boardList").querySelectorAll("div.bitem")) {
+  for (const el of $("boardList").querySelectorAll("div.bname")) {
     const b = state.boards.find(x => x.id === el.dataset.id);
     if (!b) continue;
     const prefix = b.prod && b.prod !== board().prod ? b.prod + " / " : "";
@@ -678,29 +732,8 @@ $("newBoard").addEventListener("click", () => {
   b.prod = board().prod; // 同じ作品の新シーンとして引き継ぐ
   state.boards.push(b); state.currentId = b.id;
   save(); renderAll();
-  const inp = $("boardList").querySelector("input.bitem");
+  const inp = $("boardList").querySelector("input.bname");
   if (inp) inp.focus();
-});
-$("dupBoard").addEventListener("click", () => {
-  const c = JSON.parse(JSON.stringify(board()));
-  c.id = newId();
-  c.title = (c.title || "(無題)") + " のコピー";
-  const pairs = [];
-  for (const cut of c.cuts) {
-    const oldCutId = cut.id;
-    cut.id = newId();
-    pairs.push({ oldCutId, newCutId: cut.id });
-  }
-  cloneShotScenes(pairs, c.id);
-  state.boards.push(c); state.currentId = c.id;
-  save(); renderAll();
-});
-$("delBoard").addEventListener("click", () => {
-  if (!confirm("「" + fullTitle() + "」を削除しますか?")) return;
-  state.boards = state.boards.filter(b => b.id !== state.currentId);
-  if (!state.boards.length) state.boards = [newBoard("")];
-  state.currentId = state.boards[0].id;
-  save(); renderAll();
 });
 
 /* ---------- cuts grid ---------- */
