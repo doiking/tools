@@ -259,6 +259,45 @@
     .frame { border-right: none; border-bottom: 1px solid #26262c; align-self: stretch; }
   }
 
+  /* ---------- 共通モーダル ---------- */
+  #modal {
+    position: fixed; inset: 0; z-index: 30;
+    background: rgba(0, 0, 0, .55);
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+  }
+  #modal[hidden] { display: none; }
+  #modalBox {
+    width: min(92vw, 380px);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  #modalTitle { font-size: 14px; font-weight: 700; }
+  #modalBody { display: flex; flex-direction: column; gap: 10px; }
+  #modalBody label { font-size: 11.5px; letter-spacing: .06em; color: var(--dim); display: block; margin-bottom: 4px; }
+  #modalBody input[type=text], #modalBody select {
+    width: 100%;
+    background: #16161b; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 9px;
+    font-size: 14px; padding: 9px 10px;
+    -webkit-user-select: text; user-select: text;
+  }
+  #modalBody input:focus, #modalBody select:focus { outline: none; border-color: var(--accent); }
+  #modalBody .note { font-size: 11.5px; color: var(--dim); line-height: 1.6; }
+  #modalBtns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+  #modalBtns button {
+    background: #24242c; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 9px;
+    font-size: 13px; font-weight: 600; padding: 9px 14px;
+    cursor: pointer;
+  }
+  #modalBtns button:hover, #modalBtns button:active { border-color: var(--accent); }
+  #modalBtns button.acc { background: var(--accent); color: #17130a; border-color: var(--accent); font-weight: 700; }
+  #modalBtns button.danger { color: #ff8484; margin-right: auto; }
+
   #toast {
     position: fixed; left: 50%; bottom: 24px;
     transform: translateX(-50%);
@@ -379,6 +418,15 @@
 </div>
 
 <div id="printView"></div>
+
+<div id="modal" hidden>
+  <div id="modalBox">
+    <div id="modalTitle"></div>
+    <div id="modalBody"></div>
+    <div id="modalBtns"></div>
+  </div>
+</div>
+
 <div id="toast"></div>
 <input type="file" id="fileIn" accept="image/*" hidden>
 <input type="file" id="jsonFileIn" accept="application/json" hidden>
@@ -436,16 +484,31 @@ function middleCols() {
   return out;
 }
 
-/* 組み込み列(アクション・セリフ)の名前変更。空欄で元の名前に戻す */
+/* 組み込み列(アクション・セリフ)の名前変更 */
 function editBuiltinCol(key) {
   const def = BUILTIN_COLS[key];
+  board().colNames = board().colNames || {};
   const cur = board().colNames[key] || def.label;
-  const v = prompt("列名を変更(空欄にすると元の「" + def.label + "」に戻します)", cur);
-  if (v === null) return;
-  const name = v.trim();
-  if (!name || name === def.label) delete board().colNames[key];
-  else board().colNames[key] = name;
-  save(); renderAll();
+  let inp;
+  modal.open("列名を変更", (body) => {
+    inp = document.createElement("input");
+    inp.type = "text";
+    inp.value = cur;
+    modal.field(body, "列名", inp);
+    const note = document.createElement("div");
+    note.className = "note";
+    note.textContent = "この列は削除できません。「元に戻す」で標準の「" + def.label + "」に戻ります。";
+    body.appendChild(note);
+  }, [
+    { label: "元に戻す", onClick: () => { delete board().colNames[key]; save(); renderAll(); } },
+    { label: "キャンセル", onClick: () => {} },
+    { label: "保存", cls: "acc", onClick: () => {
+        const name = inp.value.trim();
+        if (!name || name === def.label) delete board().colNames[key];
+        else board().colNames[key] = name;
+        save(); renderAll();
+      } },
+  ]);
 }
 
 function save() {
@@ -466,6 +529,46 @@ function board() { return state.boards.find(b => b.id === state.currentId); }
   save();
   setTimeout(() => toast("ショットデザイナーから " + inbox.length + " カット受信しました"), 300);
 })();
+
+/* ---------- 共通モーダル ---------- */
+const modal = {
+  open(title, buildBody, buttons) {
+    $("modalTitle").textContent = title;
+    const body = $("modalBody");
+    body.textContent = "";
+    buildBody(body);
+    const btns = $("modalBtns");
+    btns.textContent = "";
+    for (const b of buttons) {
+      const el = document.createElement("button");
+      el.textContent = b.label;
+      if (b.cls) el.className = b.cls;
+      el.addEventListener("click", () => { if (b.onClick() !== false) modal.close(); });
+      btns.appendChild(el);
+    }
+    $("modal").hidden = false;
+    const first = body.querySelector("input, select");
+    if (first) setTimeout(() => { first.focus(); if (first.select) first.select(); }, 30);
+  },
+  close() { $("modal").hidden = true; },
+  field(body, labelText, el) {
+    const wrap = document.createElement("div");
+    const l = document.createElement("label");
+    l.textContent = labelText;
+    wrap.append(l, el);
+    body.appendChild(wrap);
+    return el;
+  },
+};
+$("modal").addEventListener("click", (e) => { if (e.target === $("modal")) modal.close(); });
+window.addEventListener("keydown", (e) => {
+  if ($("modal").hidden) return;
+  if (e.key === "Escape") modal.close();
+  if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") {
+    const acc = $("modalBtns").querySelector("button.acc");
+    if (acc) { e.preventDefault(); acc.click(); }
+  }
+});
 
 function toast(msg) {
   const t = $("toast");
@@ -528,18 +631,28 @@ $("delBoard").addEventListener("click", () => {
 /* ---------- cuts grid ---------- */
 let uploadTarget = null;
 
-/* 列名の変更/削除(空欄で削除)。ヘッダとスマホ表示のラベル両方から呼べる */
+/* 列の設定(名前変更・削除)。ヘッダとスマホ表示のラベル両方から呼べる */
 function editCol(col) {
-  const v = prompt("列名を変更(空欄にすると列を削除)", col.label);
-  if (v === null) return;
-  const name = v.trim();
-  if (!name) {
-    if (!confirm("列「" + col.label + "」を削除しますか?(この列の入力内容も消えます)")) return;
-    removeCol(col);
-  } else {
-    col.label = name;
-  }
-  save(); renderAll();
+  let inp;
+  modal.open("列の設定 — " + col.label, (body) => {
+    inp = document.createElement("input");
+    inp.type = "text";
+    inp.value = col.label;
+    modal.field(body, "列名", inp);
+  }, [
+    { label: "列を削除", cls: "danger", onClick: () => {
+        if (!confirm("列「" + col.label + "」を削除しますか?(この列の入力内容も消えます)")) return false;
+        removeCol(col);
+        save(); renderAll();
+      } },
+    { label: "キャンセル", onClick: () => {} },
+    { label: "保存", cls: "acc", onClick: () => {
+        const name = inp.value.trim();
+        if (!name) { inp.focus(); return false; }
+        col.label = name;
+        save(); renderAll();
+      } },
+  ]);
 }
 
 function removeCol(col) {
@@ -784,25 +897,37 @@ function cutCard(c, i) {
 
 /* ---------- custom columns ---------- */
 function addColumn() {
-  const v = prompt("追加する列の名前(例: パート、機材、備考、T番号)");
-  if (v === null) return;
-  const name = v.trim();
-  if (!name) return;
   const mids = middleCols();
-  const lines = ["1: 「画」のすぐ右"];
-  mids.forEach((m, i) => {
-    lines.push((i + 2) + ": 「" + m.label + "」の右" + (i === mids.length - 1 ? "(いちばん右)" : ""));
-  });
-  const pv = prompt("「" + name + "」をどこに入れますか? 番号を入力:\n" + lines.join("\n"), String(mids.length + 1));
-  if (pv === null) return;
-  let pos = parseInt(pv, 10);
-  if (!Number.isFinite(pos)) pos = mids.length + 1;
-  pos = Math.min(Math.max(pos, 1), mids.length + 1);
-  const col = { id: newId(), label: name };
-  board().cols.push(col);
-  board().colOrder.splice(pos - 1, 0, col.id);
-  save(); renderAll();
-  toast("列「" + name + "」を追加しました(ヘッダの◀▶で移動できます)");
+  let inp, sel;
+  modal.open("列を追加", (body) => {
+    inp = document.createElement("input");
+    inp.type = "text";
+    inp.placeholder = "例: パート、機材、備考、T番号";
+    modal.field(body, "列名", inp);
+    sel = document.createElement("select");
+    const opts = ["「画」のすぐ右", ...mids.map((m, i) =>
+      "「" + m.label + "」の右" + (i === mids.length - 1 ? "(秒の左)" : ""))];
+    opts.forEach((t, i) => {
+      const op = document.createElement("option");
+      op.value = i;
+      op.textContent = t;
+      if (i === mids.length) op.selected = true;
+      sel.appendChild(op);
+    });
+    modal.field(body, "挿入位置(あとからヘッダの◀▶で移動できます)", sel);
+  }, [
+    { label: "キャンセル", onClick: () => {} },
+    { label: "追加", cls: "acc", onClick: () => {
+        const name = inp.value.trim();
+        if (!name) { inp.focus(); return false; }
+        const pos = Math.min(Math.max(parseInt(sel.value, 10) || 0, 0), mids.length);
+        const col = { id: newId(), label: name };
+        board().cols.push(col);
+        board().colOrder.splice(pos, 0, col.id);
+        save(); renderAll();
+        toast("列「" + name + "」を追加しました");
+      } },
+  ]);
 }
 $("addCol").addEventListener("click", addColumn);
 

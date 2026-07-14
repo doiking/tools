@@ -66,7 +66,8 @@ Design system for AI coding agents. Drop-in reference for building UI in this re
 - **スライダー**: ネイティブ `input[type=range]` + `accent-color: var(--accent)`
 - **追加ボタン(リスト末尾)**: `border: 2px dashed var(--line);` 地は透明、アクティブで黄色
 - **トースト**: 画面下中央固定、黄背景・accent-ink文字、radius 12px、2.6–3.2秒で自動消滅
-- **ダイアログ**: ネイティブ `prompt()/confirm()` を使う(自作モーダルは作らない)
+- **ダイアログ**: 入力を伴う操作は共通モーダル(`#modal` パターン、storyboard/index.html 参照。
+  Enterで決定・Escで閉じる・破壊的ボタンは左端に赤文字)。単純な最終確認のみネイティブ `confirm()`
 
 ## 5. Layout Principles
 
