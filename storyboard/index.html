@@ -51,7 +51,15 @@
   #sideTop img { height: 20px; }
   #sideTop h1 { font-size: 15px; font-weight: 700; margin: 0; }
   #side .ptitle { font-size: 11px; letter-spacing: .08em; color: var(--dim); margin: 8px 0 0; }
-  #boardList { display: flex; flex-direction: column; gap: 2px; max-height: 34vh; overflow-y: auto; }
+  #prodName {
+    width: 100%;
+    background: #16161b; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 9px;
+    font-size: 13.5px; font-weight: 600; padding: 9px 10px;
+    -webkit-user-select: text; user-select: text;
+  }
+  #prodName:focus { outline: none; border-color: var(--accent); }
+  #boardList { display: flex; flex-direction: column; gap: 2px; max-height: 30vh; overflow-y: auto; }
   .bitem {
     padding: 8px 10px;
     border: 1px solid transparent;
@@ -340,6 +348,7 @@
     padding: 2mm 6mm;
   }
   #printView .pcover .ptitle { font-size: 26pt; font-weight: 800; margin: 4mm 0 0; }
+  #printView .pcover .pscene { font-size: 15pt; font-weight: 600; color: #222; }
   #printView .pcover .pinfo { font-size: 11pt; color: #222; margin-top: 8mm; line-height: 1.9; }
   #printView .pcover .pfoot { font-size: 9pt; color: #555; margin-top: 22mm; }
   #printView .phead {
@@ -388,7 +397,10 @@
   <h1>絵コンテ</h1>
   </div>
 
-  <div class="ptitle">ボード(選択中はそのまま名前を編集できます)</div>
+  <div class="ptitle">作品名</div>
+  <input id="prodName" placeholder="作品名" autocomplete="off">
+
+  <div class="ptitle">シーン(選択中はそのまま名前を編集できます)</div>
   <div id="boardList"></div>
   <div class="btnRow">
     <button id="newBoard">＋新規</button>
@@ -447,7 +459,12 @@ function newCut(partial) {
   return Object.assign({ id: newId(), img: null, sec: 3, action: "", dialog: "", ex: {} }, partial || {});
 }
 function newBoard(title) {
-  return { id: newId(), title: title || "", cols: [], colNames: {}, colOrder: ["action", "dialog"], cuts: [newCut()] };
+  return { id: newId(), prod: "", title: title || "", cols: [], colNames: {}, colOrder: ["action", "dialog"], cuts: [newCut()] };
+}
+/* 「作品名 / シーン名」の表示用タイトル */
+function fullTitle(b) {
+  b = b || board();
+  return [b.prod, b.title].filter(x => x && x.trim()).join(" / ") || "(無題)";
 }
 let state = { boards: [], currentId: null };
 try { const raw = localStorage.getItem(LS_KEY); if (raw) state = JSON.parse(raw); } catch (e) {}
@@ -459,6 +476,7 @@ if (!state.boards.find(b => b.id === state.currentId)) state.currentId = state.b
 for (const b of state.boards) fixBoard(b); // 旧データ互換
 
 function fixBoard(b) {
+  if (b.prod === undefined) b.prod = "";
   if (!b.cols) b.cols = [];
   if (!b.colNames) b.colNames = {}; // 組み込み列の名前上書き
   if (!b.colOrder) b.colOrder = ["action", "dialog", ...b.cols.map(c => c.id)];
@@ -613,8 +631,11 @@ function renderTop() {
     } else {
       const el = document.createElement("div");
       el.className = "bitem";
-      el.textContent = b.title || "(無題)";
-      el.title = (b.title || "(無題)") + " に切替";
+      el.dataset.id = b.id;
+      // 別作品のシーンには作品名を前置して区別
+      const prefix = b.prod && b.prod !== board().prod ? b.prod + " / " : "";
+      el.textContent = prefix + (b.title || "(無題)");
+      el.title = fullTitle(b) + " に切替";
       el.addEventListener("click", () => {
         state.currentId = b.id;
         save(); renderAll();
@@ -622,6 +643,7 @@ function renderTop() {
       list.appendChild(el);
     }
   }
+  $("prodName").value = board().prod || "";
   const total = board().cuts.reduce((a, c) => a + (parseFloat(c.sec) || 0), 0);
   const m = Math.floor(total / 60), sec = Math.round(total % 60);
   const t = $("total");
@@ -632,8 +654,20 @@ function renderTop() {
   bT.textContent = (m ? m + "分" : "") + sec + "秒";
   t.append(bN, "カット ・ 合計 ", bT);
 }
+$("prodName").addEventListener("input", () => {
+  board().prod = $("prodName").value;
+  save();
+  // 一覧の作品名プレフィックスだけ更新(再描画するとフォーカスが壊れるため)
+  for (const el of $("boardList").querySelectorAll("div.bitem")) {
+    const b = state.boards.find(x => x.id === el.dataset.id);
+    if (!b) continue;
+    const prefix = b.prod && b.prod !== board().prod ? b.prod + " / " : "";
+    el.textContent = prefix + (b.title || "(無題)");
+  }
+});
 $("newBoard").addEventListener("click", () => {
   const b = newBoard("");
+  b.prod = board().prod; // 同じ作品の新シーンとして引き継ぐ
   state.boards.push(b); state.currentId = b.id;
   save(); renderAll();
   const inp = $("boardList").querySelector("input.bitem");
@@ -654,7 +688,7 @@ $("dupBoard").addEventListener("click", () => {
   save(); renderAll();
 });
 $("delBoard").addEventListener("click", () => {
-  if (!confirm("「" + (board().title || "(無題)") + "」を削除しますか?")) return;
+  if (!confirm("「" + fullTitle() + "」を削除しますか?")) return;
   state.boards = state.boards.filter(b => b.id !== state.currentId);
   if (!state.boards.length) state.boards = [newBoard("")];
   state.currentId = state.boards[0].id;
@@ -906,7 +940,7 @@ function cutCard(c, i) {
         localStorage.setItem("shot.request.v1", JSON.stringify({
           boardId: board().id,
           cutId: c.id,
-          title: (board().title ? board().title + " " : "") + "C" + (i + 1),
+          title: (fullTitle() === "(無題)" ? "" : fullTitle() + " ") + "C" + (i + 1),
         }));
       } catch (e) { alert("連携情報を書き込めませんでした"); return; }
       location.href = "../shot/";
@@ -1004,7 +1038,7 @@ async function saveFile(name, data, mime) {
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
 }
 $("jsonOut").addEventListener("click", () => {
-  saveFile("storyboard_" + (board().title || "untitled").replace(/[\\/:*?"<>|\s]+/g, "_") + ".json",
+  saveFile("storyboard_" + fullTitle().replace(/[\\/:*?"<>|\s]+/g, "_") + ".json",
     JSON.stringify(board()), "application/json");
 });
 $("jsonIn").addEventListener("click", () => { $("jsonFileIn").value = ""; $("jsonFileIn").click(); });
@@ -1026,7 +1060,7 @@ $("jsonFileIn").addEventListener("change", async () => {
     state.boards.push(b);
     state.currentId = b.id;
     save(); renderAll();
-    toast("「" + (b.title || "(無題)") + "」を読み込みました");
+    toast("「" + fullTitle(b) + "」を読み込みました");
   } catch (e) {
     alert("読み込めませんでした(このツールのJSON保存ファイルを指定してください)");
   }
@@ -1076,7 +1110,7 @@ $("printBtn").addEventListener("click", async () => {
     const phead = document.createElement("div");
     phead.className = "phead";
     const h1 = document.createElement("h1");
-    h1.textContent = "絵コンテ — " + (board().title || "(無題)");
+    h1.textContent = "絵コンテ — " + fullTitle();
     const plogo = document.createElement("img");
     plogo.className = "plogo";
     plogo.alt = "8hammer";
@@ -1115,7 +1149,10 @@ $("printBtn").addEventListener("click", async () => {
     clabel.textContent = "STORYBOARD / 絵コンテ";
     const ctitle = document.createElement("div");
     ctitle.className = "ptitle";
-    ctitle.textContent = board().title || "(無題)";
+    ctitle.textContent = board().prod || board().title || "(無題)";
+    const cscene = document.createElement("div");
+    cscene.className = "pscene";
+    if (board().prod && board().title) cscene.textContent = board().title;
     const cinfo = document.createElement("div");
     cinfo.className = "pinfo";
     cinfo.textContent = "全 " + board().cuts.length + " カット ／ 合計尺 " + durText;
@@ -1123,7 +1160,7 @@ $("printBtn").addEventListener("click", async () => {
     const cfoot = document.createElement("div");
     cfoot.className = "pfoot";
     cfoot.textContent = now.getFullYear() + "年" + (now.getMonth() + 1) + "月" + now.getDate() + "日 ／ 8hammer";
-    cover.append(clogo, clabel, ctitle, cinfo, cfoot);
+    cover.append(clogo, clabel, ctitle, cscene, cinfo, cfoot);
     sheet.appendChild(cover); // 表紙は欄外表記なし(ページ数には数える)
     return sheet;
   };
