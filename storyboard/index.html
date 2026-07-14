@@ -318,24 +318,37 @@ for (const b of state.boards) fixBoard(b); // 旧データ互換
 
 function fixBoard(b) {
   if (!b.cols) b.cols = [];
+  if (!b.colNames) b.colNames = {}; // 組み込み列の名前上書き
   if (!b.colOrder) b.colOrder = ["action", "dialog", ...b.cols.map(c => c.id)];
   b.colOrder = b.colOrder.filter(t => BUILTIN_COLS[t] || b.cols.some(c => c.id === t));
   for (const k of ["dialog", "action"]) if (!b.colOrder.includes(k)) b.colOrder.unshift(k);
   for (const c of b.cols) if (!b.colOrder.includes(c.id)) b.colOrder.push(c.id);
 }
 
-/* 並び順どおりの中間列(アクション・セリフ・カスタム)リスト */
+/* 並び順どおりの中間列(アクション・セリフ・カスタム)リスト。labelは表示名 */
 function middleCols() {
   const out = [];
   for (const tok of board().colOrder) {
     if (BUILTIN_COLS[tok]) {
-      out.push({ kind: "b", key: tok, def: BUILTIN_COLS[tok] });
+      out.push({ kind: "b", key: tok, def: BUILTIN_COLS[tok], label: board().colNames[tok] || BUILTIN_COLS[tok].label });
     } else {
       const col = board().cols.find(x => x.id === tok);
-      if (col) out.push({ kind: "c", col });
+      if (col) out.push({ kind: "c", col, label: col.label });
     }
   }
   return out;
+}
+
+/* 組み込み列(アクション・セリフ)の名前変更。空欄で元の名前に戻す */
+function editBuiltinCol(key) {
+  const def = BUILTIN_COLS[key];
+  const cur = board().colNames[key] || def.label;
+  const v = prompt("列名を変更(空欄にすると元の「" + def.label + "」に戻します)", cur);
+  if (v === null) return;
+  const name = v.trim();
+  if (!name || name === def.label) delete board().colNames[key];
+  else board().colNames[key] = name;
+  save(); renderAll();
 }
 
 function save() {
@@ -450,34 +463,43 @@ function renderGrid() {
     sp.textContent = t;
     head.appendChild(sp);
   };
-  addSpan("No");
-  addSpan("画");
-  for (const m of mids) {
-    if (m.kind === "b") { addSpan(m.def.label); continue; }
-    const col = m.col;
+  const mkHeadCell = (label, token, onRename, onDelete) => {
     const sp = document.createElement("span");
     sp.className = "colHead";
     const nm = document.createElement("a");
-    nm.textContent = col.label;
-    nm.title = "タップで列名の変更・削除";
-    nm.addEventListener("click", () => editCol(col));
-    const mkMove = (dir, arrow, title) => {
+    nm.textContent = label;
+    nm.title = "タップで列名の変更" + (onDelete ? "・削除" : "");
+    nm.addEventListener("click", onRename);
+    const mv = (dir, arrow, title) => {
       const b2 = document.createElement("button");
       b2.textContent = arrow;
       b2.title = title;
-      b2.addEventListener("click", () => moveCol(col.id, dir));
+      b2.addEventListener("click", () => moveCol(token, dir));
       return b2;
     };
-    const x = document.createElement("button");
-    x.textContent = "✕";
-    x.title = "列を削除";
-    x.addEventListener("click", () => {
-      if (!confirm("列「" + col.label + "」を削除しますか?(この列の入力内容も消えます)")) return;
-      removeCol(col);
-      save(); renderAll();
-    });
-    sp.append(nm, mkMove(-1, "◀", "左へ移動"), mkMove(1, "▶", "右へ移動"), x);
+    sp.append(nm, mv(-1, "◀", "左へ移動"), mv(1, "▶", "右へ移動"));
+    if (onDelete) {
+      const x = document.createElement("button");
+      x.textContent = "✕";
+      x.title = "列を削除";
+      x.addEventListener("click", onDelete);
+      sp.appendChild(x);
+    }
     head.appendChild(sp);
+  };
+  addSpan("No");
+  addSpan("画");
+  for (const m of mids) {
+    if (m.kind === "b") {
+      mkHeadCell(m.label, m.key, () => editBuiltinCol(m.key), null);
+    } else {
+      const col = m.col;
+      mkHeadCell(col.label, col.id, () => editCol(col), () => {
+        if (!confirm("列「" + col.label + "」を削除しますか?(この列の入力内容も消えます)")) return;
+        removeCol(col);
+        save(); renderAll();
+      });
+    }
   }
   addSpan("秒");
   addSpan("");
@@ -538,7 +560,14 @@ function cutCard(c, i) {
   };
   // 中間列(アクション・セリフ・カスタム)を並び順どおりに生成
   const midEls = middleCols().map((m) => {
-    if (m.kind === "b") return mkCell(m.def.cls, m.def.label, m.key, m.def.ph);
+    if (m.kind === "b") {
+      const cell = mkCell(m.def.cls, m.label, m.key, m.def.ph);
+      const lbl = cell.querySelector(".lbl");
+      lbl.classList.add("exl");
+      lbl.title = "タップで列名の変更";
+      lbl.addEventListener("click", () => editBuiltinCol(m.key));
+      return cell;
+    }
     const col = m.col;
     const cell = document.createElement("div");
     cell.className = "cell";
@@ -632,8 +661,7 @@ $("addCol").addEventListener("click", () => {
   const mids = middleCols();
   const lines = ["1: 「画」のすぐ右"];
   mids.forEach((m, i) => {
-    const lb = m.kind === "b" ? m.def.label : m.col.label;
-    lines.push((i + 2) + ": 「" + lb + "」の右" + (i === mids.length - 1 ? "(いちばん右)" : ""));
+    lines.push((i + 2) + ": 「" + m.label + "」の右" + (i === mids.length - 1 ? "(いちばん右)" : ""));
   });
   const pv = prompt("「" + name + "」をどこに入れますか? 番号を入力:\n" + lines.join("\n"), String(mids.length + 1));
   if (pv === null) return;
@@ -706,7 +734,7 @@ $("printBtn").addEventListener("click", async () => {
   const cols = board().cols;
   const mids = middleCols();
   const picW = cols.length >= 2 ? "44mm" : cols.length === 1 ? "52mm" : "62mm";
-  const heads = ["No", "画", ...mids.map(m => m.kind === "b" ? m.def.label : m.col.label), "秒"];
+  const heads = ["No", "画", ...mids.map(m => m.label), "秒"];
   const totalSec = board().cuts.reduce((a, c) => a + (parseFloat(c.sec) || 0), 0);
   const durText = Math.floor(totalSec / 60) + "分" + Math.round(totalSec % 60) + "秒";
 
