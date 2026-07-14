@@ -59,13 +59,14 @@
   #boardList { display: flex; flex-direction: column; gap: 2px; max-height: 28vh; overflow-y: auto; }
   .bitem {
     padding: 8px 10px;
+    border: 1px solid transparent;
     border-radius: 8px;
     font-size: 13px;
     color: var(--dim);
     cursor: pointer;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .bitem.sel { background: #24242c; color: var(--fg); box-shadow: inset 3px 0 0 var(--accent); }
+  .bitem.sel { background: #24242c; border-color: var(--accent); color: var(--fg); }
   #side button {
     background: #24242c; color: var(--fg);
     border: 1px solid var(--line); border-radius: 9px;
@@ -193,7 +194,6 @@
     #side { position: static; width: auto; max-height: none; align-self: stretch; }
     #boardList { flex-direction: row; flex-wrap: wrap; max-height: none; }
     .bitem { max-width: 46%; }
-    .bitem.sel { box-shadow: inset 0 -2px 0 var(--accent); }
   }
   @media (max-width: 700px) {
     #listHead { display: none; }

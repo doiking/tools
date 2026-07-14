@@ -81,10 +81,11 @@
   #scriptList { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .sitem {
     padding: 10px 12px;
+    border: 1px solid transparent;
     border-bottom: 1px solid #232329;
     cursor: pointer;
   }
-  .sitem.sel { background: #26262e; box-shadow: inset 3px 0 0 var(--accent); }
+  .sitem.sel { background: #26262e; border: 1px solid var(--accent); border-radius: 8px; }
   .sitem .t { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sitem .d { font-size: 11px; color: var(--dim); margin-top: 2px; }
 

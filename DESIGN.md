@@ -61,6 +61,8 @@ Design system for AI coding agents. Drop-in reference for building UI in this re
 - **パネル**: `background: var(--panel); border: 1px solid var(--line); border-radius: 10–14px; padding: 10–14px;` 先頭に `.ptitle`(セクションラベル)
 - **入力・textarea**: `background: var(--input); border: 1px solid var(--line); border-radius: 7–10px;` フォーカスで `outline: none; border-color: var(--accent);` `-webkit-user-select: text` を明示
 - **チップ(選択可能な小要素)**: `background: var(--chip); border-radius: 7–8px; font-size: 11.5–12.5px;` 選択中は `border-color/color: var(--accent)`。無効は `opacity: .38` + 打ち消し線
+- **リストの選択中項目**: チップと同じ**黄枠**(`border: 1px solid var(--accent)` + 地を一段明るく)。
+  左端のアクセントバー(inset shadow)方式は使わない
 - **スライダー**: ネイティブ `input[type=range]` + `accent-color: var(--accent)`
 - **追加ボタン(リスト末尾)**: `border: 2px dashed var(--line);` 地は透明、アクティブで黄色
 - **トースト**: 画面下中央固定、黄背景・accent-ink文字、radius 12px、2.6–3.2秒で自動消滅
@@ -94,8 +96,8 @@ Design system for AI coding agents. Drop-in reference for building UI in this re
 - ロゴに角丸・黄色背景の上にロゴ
 - 外部CDN・Webフォント・外部画像(オフライン動作が壊れる)
 - 立体感を出す影・装飾グラデーション・ガラス表現
-  (機能的なものは可: 選択中を示すアクセントバー `box-shadow: inset 3px 0 0`、
-   文字可読性のためのスクリム、カチンコ縞などのモチーフ表現)
+  (機能的なものは可: 文字可読性のためのスクリム、カチンコ縞などのモチーフ表現)
+- 選択中を示す左端のアクセントバー(`box-shadow: inset 3px 0 0`)— 黄枠方式に統一
 - ライトテーマ・テーマ切替
 - 黄色地に白文字 / 3色以上のアクセント
 - innerHTMLへのユーザー入力混入
