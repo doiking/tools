@@ -191,57 +191,75 @@
   }
 
   /* ---------- print (PDF / A4) ---------- */
-  #printView { display: none; }
+  /* ページは印刷時にJSで明示的に組む(.psheet = 1ページ)。
+     計測のため印刷用スタイルは@media printの外に置き、通常時はdisplay:noneで隠す */
+  #printView { display: none; background: #fff; color: #000; }
+  #printView.measure { display: block; position: absolute; left: -10000px; top: 0; width: 186mm; }
   @page { size: A4 portrait; margin: 12mm 12mm 14mm; }
   @media print {
     body { background: #fff; color: #000; padding: 0; }
     #topbar, #grid, #addCard, #toast { display: none !important; }
     #printView { display: block; }
-    #printView .pcover {
-      height: 262mm;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      text-align: center;
-      break-after: page;
-      gap: 6mm;
-    }
-    #printView .pcover .plogoBig { height: 14mm; margin-bottom: 10mm; }
-    #printView .pcover .plabel {
-      font-size: 11pt; letter-spacing: .5em; color: #333;
-      border-top: 1px solid #000; border-bottom: 1px solid #000;
-      padding: 2mm 6mm;
-    }
-    #printView .pcover .ptitle { font-size: 26pt; font-weight: 800; margin: 4mm 0 0; }
-    #printView .pcover .pinfo { font-size: 11pt; color: #222; margin-top: 8mm; line-height: 1.9; }
-    #printView .pcover .pfoot { font-size: 9pt; color: #555; margin-top: 22mm; }
-    #printView .phead {
-      display: flex; align-items: center; justify-content: space-between;
-      border-bottom: 2px solid #000;
-      padding-bottom: 2mm; margin-bottom: 4mm;
-    }
-    #printView h1 { font-size: 16pt; margin: 0; }
-    #printView .plogo { height: 8mm; }
-    #printView .meta { font-size: 9pt; color: #444; margin-bottom: 4mm; }
-    #printView table {
-      width: calc(100% - 1mm); /* 右端の罫線がページ端で切れるのを防ぐ */
-      border-collapse: collapse;
-      border: 1.2px solid #888;
-    }
-    #printView th, #printView td {
-      border: 1px solid #888;
-      padding: 2mm;
-      font-size: 9.5pt;
-      vertical-align: top;
-      text-align: left;
-    }
-    #printView th { background: #eee; font-size: 8.5pt; }
-    #printView td.no { width: 8mm; font-weight: 700; text-align: center; }
-    #printView td.pic { width: 62mm; }
-    #printView td.pic img { width: 100%; display: block; }
-    #printView td.sec { width: 12mm; text-align: center; }
-    #printView tr { break-inside: avoid; }
-    #printView .white { white-space: pre-wrap; }
   }
+  #printView .psheet {
+    height: 268mm;
+    display: flex; flex-direction: column;
+    break-after: page;
+    overflow: hidden;
+  }
+  #printView .psheet:last-child { break-after: auto; }
+  #printView .pcover {
+    flex: 1;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    gap: 6mm;
+  }
+  #printView .pcover .plogoBig { height: 14mm; margin-bottom: 10mm; }
+  #printView .pcover .plabel {
+    font-size: 11pt; letter-spacing: .5em; color: #333;
+    border-top: 1px solid #000; border-bottom: 1px solid #000;
+    padding: 2mm 6mm;
+  }
+  #printView .pcover .ptitle { font-size: 26pt; font-weight: 800; margin: 4mm 0 0; }
+  #printView .pcover .pinfo { font-size: 11pt; color: #222; margin-top: 8mm; line-height: 1.9; }
+  #printView .pcover .pfoot { font-size: 9pt; color: #555; margin-top: 22mm; }
+  #printView .phead {
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 2px solid #000;
+    padding-bottom: 2mm; margin-bottom: 4mm;
+  }
+  #printView h1 { font-size: 16pt; margin: 0; }
+  #printView .plogo { height: 8mm; }
+  #printView .meta { font-size: 9pt; color: #444; margin-bottom: 4mm; }
+  #printView table {
+    width: calc(100% - 1mm); /* 右端の罫線がページ端で切れるのを防ぐ */
+    border-collapse: collapse;
+    border: 1.2px solid #888;
+  }
+  #printView th, #printView td {
+    border: 1px solid #888;
+    padding: 2mm;
+    font-size: 9.5pt;
+    vertical-align: top;
+    text-align: left;
+  }
+  #printView th { background: #eee; font-size: 8.5pt; }
+  #printView td.no { width: 8mm; font-weight: 700; text-align: center; }
+  #printView td.pic { width: 62mm; }
+  #printView td.pic img { width: 100%; display: block; }
+  #printView td.sec { width: 12mm; text-align: center; }
+  #printView tr { break-inside: avoid; }
+  #printView .white { white-space: pre-wrap; }
+  #printView .pfoot2 {
+    margin-top: auto;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 6mm;
+    border-top: .5px solid #999;
+    padding-top: 1.5mm;
+    font-size: 7.5pt; color: #555;
+  }
+  #printView .pfoot2 .pnum { white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -620,62 +638,28 @@ $("jsonFileIn").addEventListener("change", async () => {
 });
 
 /* ---------- print / PDF ---------- */
-$("printBtn").addEventListener("click", () => {
-  const pv = $("printView");
-  pv.textContent = "";
+const CONFIDENTIAL_NOTE = "CONFIDENTIAL / 社外秘 — 本資料の無断転載・複製・第三者への開示を禁じます ・ © 8hammer";
 
-  // 表紙
+$("printBtn").addEventListener("click", async () => {
+  const pv = $("printView");
+  const cols = board().cols;
+  const picW = cols.length >= 2 ? "44mm" : cols.length === 1 ? "52mm" : "62mm";
+  const heads = ["No", "画", "アクション / カメラ", "セリフ / 音", ...cols.map(x => x.label), "秒"];
   const totalSec = board().cuts.reduce((a, c) => a + (parseFloat(c.sec) || 0), 0);
   const durText = Math.floor(totalSec / 60) + "分" + Math.round(totalSec % 60) + "秒";
-  const cover = document.createElement("div");
-  cover.className = "pcover";
-  const clogo = document.createElement("img");
-  clogo.className = "plogoBig";
-  clogo.alt = "8hammer";
-  clogo.src = PRINT_LOGO;
-  const clabel = document.createElement("div");
-  clabel.className = "plabel";
-  clabel.textContent = "STORYBOARD / 絵コンテ";
-  const ctitle = document.createElement("div");
-  ctitle.className = "ptitle";
-  ctitle.textContent = board().title || "(無題)";
-  const cinfo = document.createElement("div");
-  cinfo.className = "pinfo";
-  cinfo.textContent = "全 " + board().cuts.length + " カット ／ 合計尺 " + durText;
-  const now = new Date();
-  const cfoot = document.createElement("div");
-  cfoot.className = "pfoot";
-  cfoot.textContent = now.getFullYear() + "年" + (now.getMonth() + 1) + "月" + now.getDate() + "日 ／ 8hammer";
-  cover.append(clogo, clabel, ctitle, cinfo, cfoot);
-  pv.appendChild(cover);
 
-  const phead = document.createElement("div");
-  phead.className = "phead";
-  const h1 = document.createElement("h1");
-  h1.textContent = "絵コンテ — " + (board().title || "(無題)");
-  const plogo = document.createElement("img");
-  plogo.className = "plogo";
-  plogo.alt = "8hammer";
-  plogo.src = PRINT_LOGO;
-  phead.append(h1, plogo);
-  const meta = document.createElement("div");
-  meta.className = "meta";
-  const total = board().cuts.reduce((a, c) => a + (parseFloat(c.sec) || 0), 0);
-  meta.textContent = board().cuts.length + "カット / 合計 " +
-    Math.floor(total / 60) + "分" + Math.round(total % 60) + "秒 / 8hammer";
-  const tbl = document.createElement("table");
-  const cols = board().cols;
-  // 列が増えたら画を少し詰めてA4に収める
-  const picW = cols.length >= 2 ? "44mm" : cols.length === 1 ? "52mm" : "62mm";
-  const thr = document.createElement("tr");
-  const heads = ["No", "画", "アクション / カメラ", "セリフ / 音", ...cols.map(x => x.label), "秒"];
-  for (const t of heads) {
-    const th = document.createElement("th");
-    th.textContent = t;
-    thr.appendChild(th);
-  }
-  tbl.appendChild(thr);
-  board().cuts.forEach((c, i) => {
+  const mkThead = () => {
+    const thead = document.createElement("thead");
+    const thr = document.createElement("tr");
+    for (const t of heads) {
+      const th = document.createElement("th");
+      th.textContent = t;
+      thr.appendChild(th);
+    }
+    thead.appendChild(thr);
+    return thead;
+  };
+  const mkTr = (c, i) => {
     const tr = document.createElement("tr");
     const td1 = document.createElement("td"); td1.className = "no"; td1.textContent = i + 1;
     const td2 = document.createElement("td"); td2.className = "pic";
@@ -692,9 +676,109 @@ $("printBtn").addEventListener("click", () => {
     }
     const td5 = document.createElement("td"); td5.className = "sec"; td5.textContent = c.sec;
     tr.appendChild(td5);
-    tbl.appendChild(tr);
+    return tr;
+  };
+  const mkPhead = () => {
+    const phead = document.createElement("div");
+    phead.className = "phead";
+    const h1 = document.createElement("h1");
+    h1.textContent = "絵コンテ — " + (board().title || "(無題)");
+    const plogo = document.createElement("img");
+    plogo.className = "plogo";
+    plogo.alt = "8hammer";
+    plogo.src = PRINT_LOGO;
+    phead.append(h1, plogo);
+    return phead;
+  };
+  const mkMeta = () => {
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.textContent = board().cuts.length + "カット / 合計 " + durText + " / 8hammer";
+    return meta;
+  };
+  const mkFoot = (page, total) => {
+    const f = document.createElement("div");
+    f.className = "pfoot2";
+    const note = document.createElement("span");
+    note.textContent = CONFIDENTIAL_NOTE;
+    const num = document.createElement("span");
+    num.className = "pnum";
+    num.textContent = page + " / " + total;
+    f.append(note, num);
+    return f;
+  };
+  const mkCover = (totalPages) => {
+    const sheet = document.createElement("div");
+    sheet.className = "psheet";
+    const cover = document.createElement("div");
+    cover.className = "pcover";
+    const clogo = document.createElement("img");
+    clogo.className = "plogoBig";
+    clogo.alt = "8hammer";
+    clogo.src = PRINT_LOGO;
+    const clabel = document.createElement("div");
+    clabel.className = "plabel";
+    clabel.textContent = "STORYBOARD / 絵コンテ";
+    const ctitle = document.createElement("div");
+    ctitle.className = "ptitle";
+    ctitle.textContent = board().title || "(無題)";
+    const cinfo = document.createElement("div");
+    cinfo.className = "pinfo";
+    cinfo.textContent = "全 " + board().cuts.length + " カット ／ 合計尺 " + durText;
+    const now = new Date();
+    const cfoot = document.createElement("div");
+    cfoot.className = "pfoot";
+    cfoot.textContent = now.getFullYear() + "年" + (now.getMonth() + 1) + "月" + now.getDate() + "日 ／ 8hammer";
+    cover.append(clogo, clabel, ctitle, cinfo, cfoot);
+    sheet.append(cover, mkFoot(1, totalPages));
+    return sheet;
+  };
+
+  // --- 1) 実寸(A4幅)で行の高さを計測 ---
+  pv.textContent = "";
+  pv.classList.add("measure");
+  const mTbl = document.createElement("table");
+  mTbl.appendChild(mkThead());
+  const mBody = document.createElement("tbody");
+  const trs = board().cuts.map(mkTr);
+  trs.forEach(t => mBody.appendChild(t));
+  mTbl.appendChild(mBody);
+  const mHead = mkPhead(), mMeta = mkMeta(), mFoot = mkFoot(2, 9);
+  pv.append(mHead, mMeta, mTbl, mFoot);
+  await Promise.all([...pv.querySelectorAll("img")].map(im =>
+    im.decode ? im.decode().catch(() => {}) : Promise.resolve()));
+  const H = (el) => el.getBoundingClientRect().height;
+  const MM = 96 / 25.4;
+  const fixedH = H(mHead) + H(mMeta) + H(mTbl.tHead) + H(mFoot);
+  const budget = 268 * MM - fixedH - 8 * MM; // 1ページに使える行の高さ(安全マージン8mm)
+  const rowHs = trs.map(H);
+
+  // --- 2) ページに割り付け ---
+  const pages = [];
+  let curIdx = [], acc = 0;
+  board().cuts.forEach((c, i) => {
+    if (curIdx.length && acc + rowHs[i] > budget) { pages.push(curIdx); curIdx = []; acc = 0; }
+    curIdx.push(i);
+    acc += rowHs[i];
   });
-  pv.append(phead, meta, tbl);
+  if (curIdx.length) pages.push(curIdx);
+  const totalPages = pages.length + 1; // +表紙
+
+  // --- 3) ページを組み立て(各ページにヘッダー・ページ番号・機密表記) ---
+  pv.textContent = "";
+  pv.classList.remove("measure");
+  pv.appendChild(mkCover(totalPages));
+  pages.forEach((idxs, p) => {
+    const sheet = document.createElement("div");
+    sheet.className = "psheet";
+    const tbl = document.createElement("table");
+    tbl.appendChild(mkThead());
+    const tb = document.createElement("tbody");
+    idxs.forEach(i => tb.appendChild(mkTr(board().cuts[i], i)));
+    tbl.appendChild(tb);
+    sheet.append(mkPhead(), mkMeta(), tbl, mkFoot(p + 2, totalPages));
+    pv.appendChild(sheet);
+  });
   window.print();
 });
 
