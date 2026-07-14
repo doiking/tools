@@ -109,15 +109,15 @@
     border: none; background: transparent; color: var(--dim);
     font-size: 10px; padding: 0 2px; cursor: pointer;
   }
-  #listHead .colAdd { display: flex; align-items: center; justify-content: center; padding: 4px; }
-  #listHead .colAdd button {
-    width: 28px; height: 24px;
+  #listHead .secHead { display: flex; align-items: center; gap: 6px; padding: 4px 6px; }
+  #listHead .addBtn {
+    width: 24px; height: 22px; flex: none;
     background: transparent; color: var(--dim);
     border: 1px dashed var(--line); border-radius: 6px;
-    font-size: 14px; line-height: 1; padding: 0;
+    font-size: 13px; line-height: 1; padding: 0;
     cursor: pointer;
   }
-  #listHead .colAdd button:hover, #listHead .colAdd button:active { border-color: var(--accent); color: var(--accent); }
+  #listHead .addBtn:hover, #listHead .addBtn:active { border-color: var(--accent); color: var(--accent); }
   .cell .lbl.exl { text-decoration: underline dotted; cursor: pointer; }
   .card {
     background: var(--panel);
@@ -587,15 +587,16 @@ function renderGrid() {
       });
     }
   }
-  addSpan("秒");
-  const addSp = document.createElement("span");
-  addSp.className = "colAdd";
+  const secSp = document.createElement("span");
+  secSp.className = "secHead";
   const ab = document.createElement("button");
+  ab.className = "addBtn";
   ab.textContent = "＋";
-  ab.title = "列を追加(機材・備考など)";
+  ab.title = "列を追加(ここ=秒の左に入ります)";
   ab.addEventListener("click", addColumn);
-  addSp.appendChild(ab);
-  head.appendChild(addSp);
+  secSp.append(ab, "秒");
+  head.appendChild(secSp);
+  addSpan("");
   g.appendChild(head);
   board().cuts.forEach((c, i) => g.appendChild(cutCard(c, i)));
   const add = document.createElement("button");
