@@ -58,6 +58,14 @@ toolname/
 - キーはlocalStorage保存、その旨と「共有PCでは注意」を明記。送信データの範囲も明記
 - モデル選択式: `claude-sonnet-5`(推奨)/ `claude-haiku-4-5-20251001` / `claude-opus-4-8`
 
+## ファイル書き出し(CSV/JSON/XML/PNG等)
+
+- 共通パターン `saveFile`(storyboard/index.html 参照)を使う:
+  **タッチ端末(`pointer: coarse`)では Web Share API の共有シート**(→ドライブ・Dropbox・AirDrop等へ保存)、
+  **非対応・デスクトップではアンカー `download` にフォールバック**
+- 共有キャンセル(`AbortError`)は黙って無視する
+- CEPパネル(roughcut-premiere)はPWA系ルール(viewport/safe-area/theme-color/共有シート)の対象外
+
 ## コード規約
 
 - vanilla JS、`"use strict"`、`const $ = (id) => document.getElementById(id)`

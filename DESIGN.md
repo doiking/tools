@@ -93,7 +93,9 @@ Design system for AI coding agents. Drop-in reference for building UI in this re
 **Don't**
 - ロゴに角丸・黄色背景の上にロゴ
 - 外部CDN・Webフォント・外部画像(オフライン動作が壊れる)
-- 影・グラデーション・ガラス表現
+- 立体感を出す影・装飾グラデーション・ガラス表現
+  (機能的なものは可: 選択中を示すアクセントバー `box-shadow: inset 3px 0 0`、
+   文字可読性のためのスクリム、カチンコ縞などのモチーフ表現)
 - ライトテーマ・テーマ切替
 - 黄色地に白文字 / 3色以上のアクセント
 - innerHTMLへのユーザー入力混入

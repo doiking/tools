@@ -1206,13 +1206,30 @@ function doExportPng() {
   renderer.setPixelRatio(1);
   renderer.setSize(1920, 1080, false);
   renderer.render(scene, cam3);
+  const dataUrl = camCanvas.toDataURL("image/png");
+  const name = (cut().name || "shot").replace(/[\\/:*?"<>|\s]+/g, "_") + ".png";
+  savePng(dataUrl, name);
+  renderCam(); // 画面表示を復元
+}
+
+/* 保存: タッチ端末では共有シート(ドライブ等へ保存可)、その他はダウンロード */
+async function savePng(dataUrl, name) {
+  if (matchMedia("(pointer: coarse)").matches && navigator.canShare) {
+    const bin = atob(dataUrl.split(",")[1]);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const file = new File([bytes], name, { type: "image/png" });
+    if (navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: name }); return; }
+      catch (e) { if (e && e.name === "AbortError") return; }
+    }
+  }
   const a = document.createElement("a");
-  a.href = camCanvas.toDataURL("image/png");
-  a.download = (cut().name || "shot").replace(/[\\/:*?"<>|\s]+/g, "_") + ".png";
+  a.href = dataUrl;
+  a.download = name;
   document.body.appendChild(a);
   a.click();
   a.remove();
-  renderCam(); // 画面表示を復元
 }
 $("exportPng").addEventListener("click", doExportPng);
 

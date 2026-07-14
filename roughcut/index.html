@@ -547,9 +547,16 @@ function fpsInfo() {
 function esc(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
-function download(name, text, mime) {
+/* 保存: タッチ端末では共有シート(ドライブ等へ保存可)、その他はダウンロード */
+async function download(name, text, mime) {
+  const blob = new Blob([text], { type: mime || "text/plain" });
+  const file = new File([blob], name, { type: blob.type });
+  if (matchMedia("(pointer: coarse)").matches && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: name }); return; }
+    catch (e) { if (e && e.name === "AbortError") return; }
+  }
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([text], { type: mime || "text/plain" }));
+  a.href = URL.createObjectURL(blob);
   a.download = name;
   document.body.appendChild(a);
   a.click();

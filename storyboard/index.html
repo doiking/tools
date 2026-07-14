@@ -698,14 +698,24 @@ $("fileIn").addEventListener("change", () => {
 });
 
 /* ---------- JSON backup ---------- */
-$("jsonOut").addEventListener("click", () => {
-  const blob = new Blob([JSON.stringify(board())], { type: "application/json" });
+/* 保存: タッチ端末では共有シート(ドライブ等へ保存可)、その他はダウンロード */
+async function saveFile(name, data, mime) {
+  const blob = new Blob([data], { type: mime });
+  const file = new File([blob], name, { type: blob.type });
+  if (matchMedia("(pointer: coarse)").matches && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: name }); return; }
+    catch (e) { if (e && e.name === "AbortError") return; }
+  }
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = "storyboard_" + (board().title || "untitled").replace(/[\\/:*?"<>|\s]+/g, "_") + ".json";
+  a.download = name;
   document.body.appendChild(a);
   a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+}
+$("jsonOut").addEventListener("click", () => {
+  saveFile("storyboard_" + (board().title || "untitled").replace(/[\\/:*?"<>|\s]+/g, "_") + ".json",
+    JSON.stringify(board()), "application/json");
 });
 $("jsonIn").addEventListener("click", () => { $("jsonFileIn").value = ""; $("jsonFileIn").click(); });
 $("jsonFileIn").addEventListener("change", async () => {
