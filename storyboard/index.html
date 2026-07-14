@@ -730,7 +730,7 @@ $("printBtn").addEventListener("click", async () => {
     cfoot.className = "pfoot";
     cfoot.textContent = now.getFullYear() + "年" + (now.getMonth() + 1) + "月" + now.getDate() + "日 ／ 8hammer";
     cover.append(clogo, clabel, ctitle, cinfo, cfoot);
-    sheet.append(cover, mkFoot(1, totalPages));
+    sheet.appendChild(cover); // 表紙は欄外表記なし(ページ数には数える)
     return sheet;
   };
 
