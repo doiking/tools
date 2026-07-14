@@ -73,6 +73,12 @@
     z-index: 5;
   }
   #menuBtn { font-size: 16px; min-width: 44px; }
+  #toolName {
+    align-self: center;
+    font-size: 12.5px; color: var(--dim);
+    padding: 0 4px 0 2px;
+    white-space: nowrap;
+  }
   #bottomRight {
     position: fixed;
     right: calc(10px + var(--sar));
@@ -238,6 +244,7 @@
   }
 
   @media (max-width: 600px) {
+    #toolName { display: none; }
     .hudBtn { font-size: 12px; padding: 8px 9px; }
     #bottomRight button { width: 44px; height: 42px; font-size: 16px; }
     #planWrap { width: calc(100vw - 84px); height: 34dvh; }
@@ -259,6 +266,7 @@
 
 <div id="topLeft">
   <button class="hudBtn" id="menuBtn" title="メニュー">☰</button>
+  <span id="toolName">ショットデザイナー</span>
   <button class="hudBtn" id="addPerson">＋人物</button>
   <button class="hudBtn" id="addCam">＋カメラ</button>
   <button class="hudBtn" id="addBox">＋箱</button>

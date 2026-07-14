@@ -54,7 +54,7 @@
     border: 1px solid var(--line); border-radius: 20px;
     font-size: 14px; padding: 8px 14px;
   }
-  #cityChips button.sel { background: var(--accent); color: #17130a; border-color: var(--accent); font-weight: 700; }
+  #cityChips button.sel { background: #24242c; color: var(--accent); border-color: var(--accent); font-weight: 700; }
   #gpsBtn { font-weight: 600; }
 
   #coordRow { display: flex; gap: 8px; margin-top: 10px; align-items: center; flex-wrap: wrap; }
@@ -416,7 +416,7 @@ function bindDate() {
   $("todayBtn").addEventListener("click", () => setDate(new Date()));
 }
 
-$("tzNote").textContent = Intl.DateTimeFormat().resolvedOptions().timeZone;
+$("tzNote").textContent = "時刻表示: " + Intl.DateTimeFormat().resolvedOptions().timeZone + "(この端末のタイムゾーン)";
 window.addEventListener("resize", calc);
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   navigator.serviceWorker.register("sw.js").catch(() => {});

@@ -50,12 +50,19 @@
     border: 2px dashed var(--line);
     border-radius: 14px;
     padding: 26px 16px;
+    min-height: 32vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     text-align: center;
     color: var(--dim);
     font-size: 14.5px;
     cursor: pointer;
     line-height: 1.8;
   }
+  /* 解析後は受け皿をコンパクトに */
+  #drop.small { min-height: 0; padding: 14px 16px; }
   #drop.over { border-color: var(--accent); color: var(--accent); }
   #drop b { color: var(--fg); }
   #fileInfo { font-size: 13px; color: var(--accent); margin-top: 8px; }
@@ -309,6 +316,7 @@ async function loadFiles(fileList) {
     return;
   }
   if (cur < 0) cur = 0;
+  drop.classList.add("small");
   $("paramPanel").hidden = false;
   $("wavePanel").hidden = false;
   $("exportPanel").hidden = false;

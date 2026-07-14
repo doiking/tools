@@ -55,7 +55,7 @@
     border: 1px solid var(--line); border-radius: 18px;
     font-size: 14px; padding: 9px 13px;
   }
-  .chips button.sel { background: var(--accent); color: #17130a; border-color: var(--accent); font-weight: 700; }
+  .chips button.sel { background: #24242c; color: var(--accent); border-color: var(--accent); font-weight: 700; }
   .sub { margin-top: 10px; }
 
   /* results */
@@ -67,7 +67,7 @@
     padding: 14px 16px;
   }
   #bigResult .lbl { font-size: 13px; color: var(--dim); }
-  #bigResult .val { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; margin: 2px 0; }
+  #bigResult .val { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; margin: 2px 0; color: var(--accent); }
   #bigResult .rng { font-size: 14px; color: var(--dim); }
 
   table { width: 100%; border-collapse: collapse; font-size: 15px; }
@@ -155,7 +155,7 @@
       <div class="panel">
         <div class="ptitle">回線から逆引き — 会場の上り実測値を入力</div>
         <div id="upRow">
-          <input id="upload" inputmode="decimal" placeholder="--">
+          <input id="upload" inputmode="decimal" placeholder="例: 18.5">
           <span class="unit">Mbps(上り)</span>
         </div>
         <div id="verdict" style="display:none"></div>

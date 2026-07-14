@@ -148,6 +148,19 @@
   .ctrl button.del { color: #ff8484; }
   .ctrl button.b3d:active { background: var(--accent); color: #17130a; }
 
+  /* スマホ: ツールバーを整理(操作をコンパクトに、破壊的な「削除」は末尾へ) */
+  @media (max-width: 600px) {
+    #topbar { gap: 6px; }
+    #topbar button { font-size: 12.5px; padding: 8px 10px; white-space: nowrap; }
+    #boardTitle { width: 130px; flex: 1; }
+    #topbar select { max-width: 110px; }
+    #delBoard { order: 8; }
+    #total { order: 9; width: 100%; text-align: right; }
+    #jsonOut { order: 5; }
+    #jsonIn { order: 6; }
+    #printBtn { order: 7; }
+    .spacer { display: none; }
+  }
   @media (max-width: 700px) {
     #listHead { display: none; }
     .card { grid-template-columns: 1fr; }
