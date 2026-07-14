@@ -1,5 +1,5 @@
 /* Prompter service worker: cache-first so the app works offline on set. */
-const CACHE = "storyboard-v13";
+const CACHE = "storyboard-v14";
 const ASSETS = [
   "./",
   "./index.html",

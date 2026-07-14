@@ -295,11 +295,17 @@ const $ = (id) => document.getElementById(id);
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
 /* ---------- state ---------- */
+/* 組み込みの文字列列(No・画・秒・操作は位置固定、この2つとカスタム列は並び替え可) */
+const BUILTIN_COLS = {
+  action: { label: "アクション / カメラ", ph: "例: Aが振り返る。ドリーで寄り", fr: "1.1fr", cls: "act" },
+  dialog: { label: "セリフ / 音", ph: "例: A「おはよう」/ SE: ドアの音", fr: "0.9fr", cls: "dia" },
+};
+
 function newCut(partial) {
   return Object.assign({ id: newId(), img: null, sec: 3, action: "", dialog: "", ex: {} }, partial || {});
 }
 function newBoard(title) {
-  return { id: newId(), title: title || "", cols: [], cuts: [newCut()] };
+  return { id: newId(), title: title || "", cols: [], colOrder: ["action", "dialog"], cuts: [newCut()] };
 }
 let state = { boards: [], currentId: null };
 try { const raw = localStorage.getItem(LS_KEY); if (raw) state = JSON.parse(raw); } catch (e) {}
@@ -308,7 +314,29 @@ if (!state.boards || !state.boards.length) {
   state = { boards: [b], currentId: b.id };
 }
 if (!state.boards.find(b => b.id === state.currentId)) state.currentId = state.boards[0].id;
-for (const b of state.boards) if (!b.cols) b.cols = []; // 旧データ互換
+for (const b of state.boards) fixBoard(b); // 旧データ互換
+
+function fixBoard(b) {
+  if (!b.cols) b.cols = [];
+  if (!b.colOrder) b.colOrder = ["action", "dialog", ...b.cols.map(c => c.id)];
+  b.colOrder = b.colOrder.filter(t => BUILTIN_COLS[t] || b.cols.some(c => c.id === t));
+  for (const k of ["dialog", "action"]) if (!b.colOrder.includes(k)) b.colOrder.unshift(k);
+  for (const c of b.cols) if (!b.colOrder.includes(c.id)) b.colOrder.push(c.id);
+}
+
+/* 並び順どおりの中間列(アクション・セリフ・カスタム)リスト */
+function middleCols() {
+  const out = [];
+  for (const tok of board().colOrder) {
+    if (BUILTIN_COLS[tok]) {
+      out.push({ kind: "b", key: tok, def: BUILTIN_COLS[tok] });
+    } else {
+      const col = board().cols.find(x => x.id === tok);
+      if (col) out.push({ kind: "c", col });
+    }
+  }
+  return out;
+}
 
 function save() {
   try { localStorage.setItem(LS_KEY, JSON.stringify(state)); }
@@ -387,51 +415,72 @@ function editCol(col) {
   const name = v.trim();
   if (!name) {
     if (!confirm("列「" + col.label + "」を削除しますか?(この列の入力内容も消えます)")) return;
-    board().cols = board().cols.filter(x => x.id !== col.id);
-    for (const c of board().cuts) if (c.ex) delete c.ex[col.id];
+    removeCol(col);
   } else {
     col.label = name;
   }
   save(); renderAll();
 }
 
+function removeCol(col) {
+  board().cols = board().cols.filter(x => x.id !== col.id);
+  board().colOrder = board().colOrder.filter(t => t !== col.id);
+  for (const c of board().cuts) if (c.ex) delete c.ex[col.id];
+}
+
+function moveCol(id, dir) {
+  const ord = board().colOrder;
+  const i = ord.indexOf(id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= ord.length) return;
+  [ord[i], ord[j]] = [ord[j], ord[i]];
+  save(); renderAll();
+}
+
 function renderGrid() {
   const g = $("grid");
   g.textContent = "";
-  const cols = board().cols;
+  const mids = middleCols();
   g.style.setProperty("--sbcols",
-    "46px 300px 1.1fr 0.9fr " + cols.map(() => "0.7fr").join(" ") + (cols.length ? " " : "") + "64px 44px");
+    "46px 300px " + mids.map(m => m.kind === "b" ? m.def.fr : "0.7fr").join(" ") + " 64px 44px");
   const head = document.createElement("div");
   head.id = "listHead";
-  for (const t of ["No", "画", "アクション / カメラ", "セリフ / 音"]) {
+  const addSpan = (t) => {
     const sp = document.createElement("span");
     sp.textContent = t;
     head.appendChild(sp);
-  }
-  for (const col of cols) {
+  };
+  addSpan("No");
+  addSpan("画");
+  for (const m of mids) {
+    if (m.kind === "b") { addSpan(m.def.label); continue; }
+    const col = m.col;
     const sp = document.createElement("span");
     sp.className = "colHead";
     const nm = document.createElement("a");
     nm.textContent = col.label;
     nm.title = "タップで列名の変更・削除";
     nm.addEventListener("click", () => editCol(col));
+    const mkMove = (dir, arrow, title) => {
+      const b2 = document.createElement("button");
+      b2.textContent = arrow;
+      b2.title = title;
+      b2.addEventListener("click", () => moveCol(col.id, dir));
+      return b2;
+    };
     const x = document.createElement("button");
     x.textContent = "✕";
     x.title = "列を削除";
     x.addEventListener("click", () => {
       if (!confirm("列「" + col.label + "」を削除しますか?(この列の入力内容も消えます)")) return;
-      board().cols = board().cols.filter(c2 => c2.id !== col.id);
-      for (const c of board().cuts) if (c.ex) delete c.ex[col.id];
+      removeCol(col);
       save(); renderAll();
     });
-    sp.append(nm, x);
+    sp.append(nm, mkMove(-1, "◀", "左へ移動"), mkMove(1, "▶", "右へ移動"), x);
     head.appendChild(sp);
   }
-  for (const t of ["秒", ""]) {
-    const sp = document.createElement("span");
-    sp.textContent = t;
-    head.appendChild(sp);
-  }
+  addSpan("秒");
+  addSpan("");
   g.appendChild(head);
   board().cuts.forEach((c, i) => g.appendChild(cutCard(c, i)));
   const add = document.createElement("button");
@@ -487,11 +536,10 @@ function cutCard(c, i) {
     cell.append(l, t);
     return cell;
   };
-  const act = mkCell("act", "アクション / カメラ", "action", "例: Aが振り返る。ドリーで寄り");
-  const dia = mkCell("dia", "セリフ / 音", "dialog", "例: A「おはよう」/ SE: ドアの音");
-
-  // カスタム列(機材・備考など)
-  const exCells = board().cols.map((col) => {
+  // 中間列(アクション・セリフ・カスタム)を並び順どおりに生成
+  const midEls = middleCols().map((m) => {
+    if (m.kind === "b") return mkCell(m.def.cls, m.def.label, m.key, m.def.ph);
+    const col = m.col;
     const cell = document.createElement("div");
     cell.className = "cell";
     const l = document.createElement("div");
@@ -571,19 +619,32 @@ function cutCard(c, i) {
     })
   );
 
-  card.append(no, frame, act, dia, ...exCells, secCell, ctrl);
+  card.append(no, frame, ...midEls, secCell, ctrl);
   return card;
 }
 
 /* ---------- custom columns ---------- */
 $("addCol").addEventListener("click", () => {
-  const v = prompt("追加する列の名前(例: 機材、備考、T番号、出演)");
+  const v = prompt("追加する列の名前(例: パート、機材、備考、T番号)");
   if (v === null) return;
   const name = v.trim();
   if (!name) return;
-  board().cols.push({ id: newId(), label: name });
+  const mids = middleCols();
+  const lines = ["1: 「画」のすぐ右"];
+  mids.forEach((m, i) => {
+    const lb = m.kind === "b" ? m.def.label : m.col.label;
+    lines.push((i + 2) + ": 「" + lb + "」の右" + (i === mids.length - 1 ? "(いちばん右)" : ""));
+  });
+  const pv = prompt("「" + name + "」をどこに入れますか? 番号を入力:\n" + lines.join("\n"), String(mids.length + 1));
+  if (pv === null) return;
+  let pos = parseInt(pv, 10);
+  if (!Number.isFinite(pos)) pos = mids.length + 1;
+  pos = Math.min(Math.max(pos, 1), mids.length + 1);
+  const col = { id: newId(), label: name };
+  board().cols.push(col);
+  board().colOrder.splice(pos - 1, 0, col.id);
   save(); renderAll();
-  toast("列「" + name + "」を追加しました");
+  toast("列「" + name + "」を追加しました(ヘッダの◀▶で移動できます)");
 });
 
 /* image upload: downscale to fit 960x540 */
@@ -625,7 +686,7 @@ $("jsonFileIn").addEventListener("change", async () => {
   try {
     const b = JSON.parse(await f.text());
     if (!b.cuts) throw new Error("bad");
-    if (!b.cols) b.cols = [];
+    fixBoard(b);
     b.id = newId();
     for (const c of b.cuts) c.id = newId();
     state.boards.push(b);
@@ -643,8 +704,9 @@ const CONFIDENTIAL_NOTE = "CONFIDENTIAL / 社外秘 — 本資料の無断転載
 $("printBtn").addEventListener("click", async () => {
   const pv = $("printView");
   const cols = board().cols;
+  const mids = middleCols();
   const picW = cols.length >= 2 ? "44mm" : cols.length === 1 ? "52mm" : "62mm";
-  const heads = ["No", "画", "アクション / カメラ", "セリフ / 音", ...cols.map(x => x.label), "秒"];
+  const heads = ["No", "画", ...mids.map(m => m.kind === "b" ? m.def.label : m.col.label), "秒"];
   const totalSec = board().cuts.reduce((a, c) => a + (parseFloat(c.sec) || 0), 0);
   const durText = Math.floor(totalSec / 60) + "分" + Math.round(totalSec % 60) + "秒";
 
@@ -665,13 +727,11 @@ $("printBtn").addEventListener("click", async () => {
     const td2 = document.createElement("td"); td2.className = "pic";
     td2.style.width = picW;
     if (c.img) { const im = document.createElement("img"); im.src = c.img; td2.appendChild(im); }
-    const td3 = document.createElement("td"); td3.className = "white"; td3.textContent = c.action;
-    const td4 = document.createElement("td"); td4.className = "white"; td4.textContent = c.dialog;
-    tr.append(td1, td2, td3, td4);
-    for (const col of cols) {
+    tr.append(td1, td2);
+    for (const m of mids) {
       const td = document.createElement("td");
       td.className = "white";
-      td.textContent = (c.ex && c.ex[col.id]) || "";
+      td.textContent = m.kind === "b" ? (c[m.key] || "") : ((c.ex && c.ex[m.col.id]) || "");
       tr.appendChild(td);
     }
     const td5 = document.createElement("td"); td5.className = "sec"; td5.textContent = c.sec;
