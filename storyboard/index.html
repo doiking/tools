@@ -183,6 +183,15 @@
   }
   .secCell input:focus { outline: none; border-color: var(--accent); }
   .secCell .unit { font-size: 10.5px; color: var(--dim); }
+  .secBtns { display: flex; gap: 4px; }
+  .secBtns button {
+    width: 24px; height: 22px;
+    background: #24242c; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 6px;
+    font-size: 13px; line-height: 1; padding: 0;
+    cursor: pointer;
+  }
+  .secBtns button:hover, .secBtns button:active { border-color: var(--accent); }
   .ctrl {
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
@@ -695,7 +704,22 @@ function cutCard(c, i) {
   const unit = document.createElement("span");
   unit.className = "unit";
   unit.textContent = "秒";
-  secCell.append(slbl, sec, unit);
+  const btns = document.createElement("div");
+  btns.className = "secBtns";
+  const mkStep = (label, delta) => {
+    const b = document.createElement("button");
+    b.textContent = label;
+    b.title = (delta > 0 ? "+" : "−") + "0.5秒";
+    b.addEventListener("click", () => {
+      const v = (parseFloat(sec.value) || 0) + delta;
+      c.sec = Math.max(0, Math.round(v * 10) / 10);
+      sec.value = c.sec;
+      save(); renderTop();
+    });
+    return b;
+  };
+  btns.append(mkStep("−", -0.5), mkStep("＋", 0.5));
+  secCell.append(slbl, sec, unit, btns);
 
   const ctrl = document.createElement("div");
   ctrl.className = "ctrl";
