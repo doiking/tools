@@ -88,6 +88,13 @@
   #side button.danger { color: #ff8484; }
   .btnRow { display: flex; gap: 6px; }
   .btnRow button { flex: 1; }
+  #side .ptitle.rowHead { display: flex; align-items: center; justify-content: space-between; }
+  #side .ptools { display: flex; gap: 4px; }
+  #side .ptools button {
+    width: 26px; height: 24px; padding: 0;
+    font-size: 12px; line-height: 1;
+    border-radius: 6px;
+  }
   #total { font-size: 12px; color: var(--dim); line-height: 1.7; }
   #total b { color: var(--accent); font-size: 14px; font-variant-numeric: tabular-nums; }
   #addCol { display: none; } /* デスクトップは表ヘッダ右端の＋を使う */
@@ -400,13 +407,14 @@
   <div class="ptitle">作品名</div>
   <input id="prodName" placeholder="作品名" autocomplete="off">
 
-  <div class="ptitle">シーン</div>
-  <div id="boardList"></div>
-  <div class="btnRow">
-    <button id="newBoard">＋新規</button>
-    <button id="dupBoard">複製</button>
-    <button id="delBoard" class="danger">削除</button>
+  <div class="ptitle rowHead">シーン
+    <span class="ptools">
+      <button id="newBoard" title="新規シーン">＋</button>
+      <button id="dupBoard" title="シーンを複製">⧉</button>
+      <button id="delBoard" class="danger" title="シーンを削除">✕</button>
+    </span>
   </div>
+  <div id="boardList"></div>
 
   <div class="ptitle">表</div>
   <button id="addCol" title="このボードに列を追加(機材・備考など)">＋列を追加</button>
