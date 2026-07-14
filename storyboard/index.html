@@ -39,6 +39,7 @@
     border: 1px solid var(--line); border-radius: 9px;
     font-size: 14px; padding: 9px 10px;
   }
+  #boardSel { max-width: 180px; text-overflow: ellipsis; }
   #boardTitle { width: 200px; font-weight: 600; -webkit-user-select: text; user-select: text; }
   #boardTitle:focus, select:focus { outline: none; border-color: var(--accent); }
   #topbar button {
@@ -418,7 +419,8 @@ function renderTop() {
   for (const b of state.boards) {
     const op = document.createElement("option");
     op.value = b.id;
-    op.textContent = b.title || "(無題)";
+    const t = b.title || "(無題)";
+    op.textContent = t.length > 20 ? t.slice(0, 20) + "…" : t; // 長いタイトルで伸びない
     if (b.id === state.currentId) op.selected = true;
     s.appendChild(op);
   }
