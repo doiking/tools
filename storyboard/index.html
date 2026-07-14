@@ -67,6 +67,13 @@
     font-size: 11px; color: var(--dim); letter-spacing: .08em;
   }
   #listHead span { padding: 2px 8px; }
+  #listHead .colHead { display: flex; align-items: center; gap: 4px; }
+  #listHead .colHead a { color: var(--accent); cursor: pointer; text-decoration: underline dotted; }
+  #listHead .colHead button {
+    border: none; background: transparent; color: var(--dim);
+    font-size: 10px; padding: 0 2px; cursor: pointer;
+  }
+  .cell .lbl.exl { text-decoration: underline dotted; cursor: pointer; }
   .card {
     background: var(--panel);
     border: 1px solid var(--line);
@@ -101,10 +108,13 @@
     display: flex; flex-direction: column;
     border-right: 1px solid #26262c;
     padding: 6px;
+    min-width: 0; /* textareaの固有幅でgrid列が広がるのを防ぐ */
   }
   .cell .lbl { display: none; font-size: 10.5px; color: var(--dim); letter-spacing: .08em; margin: 2px 2px 4px; }
   .cell textarea {
     flex: 1;
+    width: 100%;
+    min-width: 0;
     min-height: 96px;
     background: transparent; color: var(--fg);
     border: none; border-radius: 6px;
@@ -244,6 +254,7 @@
   <button id="newBoard">＋新規</button>
   <button id="dupBoard">複製</button>
   <button id="delBoard" class="danger">削除</button>
+  <button id="addCol" title="このボードに列を追加(機材・備考など)">＋列</button>
   <span class="spacer"></span>
   <span id="total"></span>
   <button id="jsonOut" title="バックアップ">JSON保存</button>
@@ -268,10 +279,10 @@ const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2
 
 /* ---------- state ---------- */
 function newCut(partial) {
-  return Object.assign({ id: newId(), img: null, sec: 3, action: "", dialog: "" }, partial || {});
+  return Object.assign({ id: newId(), img: null, sec: 3, action: "", dialog: "", ex: {} }, partial || {});
 }
 function newBoard(title) {
-  return { id: newId(), title: title || "", cuts: [newCut()] };
+  return { id: newId(), title: title || "", cols: [], cuts: [newCut()] };
 }
 let state = { boards: [], currentId: null };
 try { const raw = localStorage.getItem(LS_KEY); if (raw) state = JSON.parse(raw); } catch (e) {}
@@ -280,6 +291,7 @@ if (!state.boards || !state.boards.length) {
   state = { boards: [b], currentId: b.id };
 }
 if (!state.boards.find(b => b.id === state.currentId)) state.currentId = state.boards[0].id;
+for (const b of state.boards) if (!b.cols) b.cols = []; // 旧データ互換
 
 function save() {
   try { localStorage.setItem(LS_KEY, JSON.stringify(state)); }
@@ -351,12 +363,54 @@ $("delBoard").addEventListener("click", () => {
 /* ---------- cuts grid ---------- */
 let uploadTarget = null;
 
+/* 列名の変更/削除(空欄で削除)。ヘッダとスマホ表示のラベル両方から呼べる */
+function editCol(col) {
+  const v = prompt("列名を変更(空欄にすると列を削除)", col.label);
+  if (v === null) return;
+  const name = v.trim();
+  if (!name) {
+    if (!confirm("列「" + col.label + "」を削除しますか?(この列の入力内容も消えます)")) return;
+    board().cols = board().cols.filter(x => x.id !== col.id);
+    for (const c of board().cuts) if (c.ex) delete c.ex[col.id];
+  } else {
+    col.label = name;
+  }
+  save(); renderAll();
+}
+
 function renderGrid() {
   const g = $("grid");
   g.textContent = "";
+  const cols = board().cols;
+  g.style.setProperty("--sbcols",
+    "46px 300px 1.1fr 0.9fr " + cols.map(() => "0.7fr").join(" ") + (cols.length ? " " : "") + "64px 44px");
   const head = document.createElement("div");
   head.id = "listHead";
-  for (const t of ["No", "画", "アクション / カメラ", "セリフ / 音", "秒", ""]) {
+  for (const t of ["No", "画", "アクション / カメラ", "セリフ / 音"]) {
+    const sp = document.createElement("span");
+    sp.textContent = t;
+    head.appendChild(sp);
+  }
+  for (const col of cols) {
+    const sp = document.createElement("span");
+    sp.className = "colHead";
+    const nm = document.createElement("a");
+    nm.textContent = col.label;
+    nm.title = "タップで列名の変更・削除";
+    nm.addEventListener("click", () => editCol(col));
+    const x = document.createElement("button");
+    x.textContent = "✕";
+    x.title = "列を削除";
+    x.addEventListener("click", () => {
+      if (!confirm("列「" + col.label + "」を削除しますか?(この列の入力内容も消えます)")) return;
+      board().cols = board().cols.filter(c2 => c2.id !== col.id);
+      for (const c of board().cuts) if (c.ex) delete c.ex[col.id];
+      save(); renderAll();
+    });
+    sp.append(nm, x);
+    head.appendChild(sp);
+  }
+  for (const t of ["秒", ""]) {
     const sp = document.createElement("span");
     sp.textContent = t;
     head.appendChild(sp);
@@ -418,6 +472,23 @@ function cutCard(c, i) {
   };
   const act = mkCell("act", "アクション / カメラ", "action", "例: Aが振り返る。ドリーで寄り");
   const dia = mkCell("dia", "セリフ / 音", "dialog", "例: A「おはよう」/ SE: ドアの音");
+
+  // カスタム列(機材・備考など)
+  const exCells = board().cols.map((col) => {
+    const cell = document.createElement("div");
+    cell.className = "cell";
+    const l = document.createElement("div");
+    l.className = "lbl exl";
+    l.textContent = col.label;
+    l.title = "タップで列名の変更・削除";
+    l.addEventListener("click", () => editCol(col));
+    const t = document.createElement("textarea");
+    t.placeholder = col.label;
+    t.value = (c.ex && c.ex[col.id]) || "";
+    t.addEventListener("input", () => { c.ex = c.ex || {}; c.ex[col.id] = t.value; save(); });
+    cell.append(l, t);
+    return cell;
+  });
 
   const secCell = document.createElement("div");
   secCell.className = "cell secCell";
@@ -483,9 +554,20 @@ function cutCard(c, i) {
     })
   );
 
-  card.append(no, frame, act, dia, secCell, ctrl);
+  card.append(no, frame, act, dia, ...exCells, secCell, ctrl);
   return card;
 }
+
+/* ---------- custom columns ---------- */
+$("addCol").addEventListener("click", () => {
+  const v = prompt("追加する列の名前(例: 機材、備考、T番号、出演)");
+  if (v === null) return;
+  const name = v.trim();
+  if (!name) return;
+  board().cols.push({ id: newId(), label: name });
+  save(); renderAll();
+  toast("列「" + name + "」を追加しました");
+});
 
 /* image upload: downscale to fit 960x540 */
 $("fileIn").addEventListener("change", () => {
@@ -526,6 +608,7 @@ $("jsonFileIn").addEventListener("change", async () => {
   try {
     const b = JSON.parse(await f.text());
     if (!b.cuts) throw new Error("bad");
+    if (!b.cols) b.cols = [];
     b.id = newId();
     for (const c of b.cuts) c.id = newId();
     state.boards.push(b);
@@ -582,8 +665,12 @@ $("printBtn").addEventListener("click", () => {
   meta.textContent = board().cuts.length + "カット / 合計 " +
     Math.floor(total / 60) + "分" + Math.round(total % 60) + "秒 / 8hammer";
   const tbl = document.createElement("table");
+  const cols = board().cols;
+  // 列が増えたら画を少し詰めてA4に収める
+  const picW = cols.length >= 2 ? "44mm" : cols.length === 1 ? "52mm" : "62mm";
   const thr = document.createElement("tr");
-  for (const t of ["No", "画", "アクション / カメラ", "セリフ / 音", "秒"]) {
+  const heads = ["No", "画", "アクション / カメラ", "セリフ / 音", ...cols.map(x => x.label), "秒"];
+  for (const t of heads) {
     const th = document.createElement("th");
     th.textContent = t;
     thr.appendChild(th);
@@ -593,11 +680,19 @@ $("printBtn").addEventListener("click", () => {
     const tr = document.createElement("tr");
     const td1 = document.createElement("td"); td1.className = "no"; td1.textContent = i + 1;
     const td2 = document.createElement("td"); td2.className = "pic";
+    td2.style.width = picW;
     if (c.img) { const im = document.createElement("img"); im.src = c.img; td2.appendChild(im); }
     const td3 = document.createElement("td"); td3.className = "white"; td3.textContent = c.action;
     const td4 = document.createElement("td"); td4.className = "white"; td4.textContent = c.dialog;
+    tr.append(td1, td2, td3, td4);
+    for (const col of cols) {
+      const td = document.createElement("td");
+      td.className = "white";
+      td.textContent = (c.ex && c.ex[col.id]) || "";
+      tr.appendChild(td);
+    }
     const td5 = document.createElement("td"); td5.className = "sec"; td5.textContent = c.sec;
-    tr.append(td1, td2, td3, td4, td5);
+    tr.appendChild(td5);
     tbl.appendChild(tr);
   });
   pv.append(phead, meta, tbl);
