@@ -597,5 +597,85 @@ bindPlay();
 renderList();
 renderEditor();
 </script>
+
+<!-- 要望・不具合の送信(全ツール共通ウィジェット) -->
+<script>
+(function () {
+  "use strict";
+  var TOOL = "テレプロンプター";
+  var MAIL = "doi@8hammer.com";
+  var st = document.createElement("style");
+  st.textContent =
+    "#fbBtn{position:fixed;right:14px;bottom:64px;z-index:40;width:36px;height:36px;border-radius:50%;" +
+    "background:#1c1c22;color:#9a9aa4;border:1px solid #33333c;font-size:16px;padding:0;cursor:pointer;opacity:.6;}" +
+    "#fbBtn:hover,#fbBtn:active{opacity:1;border-color:#f7c114;color:#f7c114;}" +
+    "#fbWrap{position:fixed;inset:0;z-index:41;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px;}" +
+    "#fbWrap[hidden]{display:none;}" +
+    "#fbBox{width:min(92vw,400px);background:#1c1c22;color:#f2f2ee;border:1px solid #33333c;border-radius:14px;padding:16px;" +
+    "display:flex;flex-direction:column;gap:10px;font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Noto Sans JP',sans-serif;}" +
+    "#fbBox h2{font-size:14px;font-weight:700;margin:0;}" +
+    "#fbText{width:100%;background:#16161b;color:#f2f2ee;border:1px solid #33333c;border-radius:9px;font-size:14px;line-height:1.7;" +
+    "padding:10px;resize:vertical;font-family:inherit;-webkit-user-select:text;user-select:text;}" +
+    "#fbText:focus{outline:none;border-color:#f7c114;}" +
+    "#fbNote{font-size:11px;color:#9a9aa4;line-height:1.7;}" +
+    "#fbBtns{display:flex;gap:8px;justify-content:flex-end;}" +
+    "#fbBtns button{background:#24242c;color:#f2f2ee;border:1px solid #33333c;border-radius:9px;font-size:13px;font-weight:600;" +
+    "padding:9px 14px;cursor:pointer;font-family:inherit;}" +
+    "#fbBtns button:hover,#fbBtns button:active{border-color:#f7c114;}" +
+    "#fbBtns button.acc{background:#f7c114;color:#17130a;border-color:#f7c114;font-weight:700;}" +
+    "#fbCopy{margin-right:auto;}";
+  document.head.appendChild(st);
+
+  var btn = document.createElement("button");
+  btn.id = "fbBtn";
+  btn.title = "要望・不具合を送る";
+  btn.textContent = "\uD83D\uDCEE";
+  document.body.appendChild(btn);
+
+  var wrap = document.createElement("div");
+  wrap.id = "fbWrap";
+  wrap.hidden = true;
+  wrap.innerHTML =
+    '<div id="fbBox"><h2>\uD83D\uDCEE \u8981\u671B\u30FB\u4E0D\u5177\u5408\u3092\u9001\u308B \u2014 ' + TOOL + "</h2>" +
+    '<textarea id="fbText" rows="5" placeholder="\u4F8B: \u25CB\u25CB\u304C\u3067\u304D\u308B\u3068\u52A9\u304B\u308B / \u25CB\u25CB\u306E\u3068\u304D\u306B\u8868\u793A\u304C\u5D29\u308C\u308B \u306A\u3069"></textarea>' +
+    '<div id="fbNote">\u9001\u4FE1\u3059\u308B\u3068\u5171\u6709\u30B7\u30FC\u30C8\uFF08\u307E\u305F\u306F\u30E1\u30FC\u30EB\u4F5C\u6210\u753B\u9762\uFF09\u304C\u958B\u304D\u307E\u3059\u3002\u30C4\u30FC\u30EB\u540D\u30FB\u753B\u9762\u30B5\u30A4\u30BA\u306A\u3069\u306E\u74B0\u5883\u60C5\u5831\u3092\u81EA\u52D5\u3067\u6DFB\u4ED8\u3057\u307E\u3059\uFF08\u4F5C\u696D\u30C7\u30FC\u30BF\u306F\u9001\u3089\u308C\u307E\u305B\u3093\uFF09\u3002</div>' +
+    '<div id="fbBtns"><button id="fbCopy">\u30B3\u30D4\u30FC</button><button id="fbCancel">\u30AD\u30E3\u30F3\u30BB\u30EB</button><button id="fbSend" class="acc">\u9001\u4FE1</button></div></div>';
+  document.body.appendChild(wrap);
+
+  function buildText() {
+    var body = document.getElementById("fbText").value.trim();
+    return "\u3010\u8981\u671B\u30FB\u4E0D\u5177\u5408\u3011" + TOOL + "\n" + body +
+      "\n\n--- \u74B0\u5883\u60C5\u5831 ---" +
+      "\n\u30C4\u30FC\u30EB: " + TOOL +
+      "\nURL: " + location.href +
+      "\n\u753B\u9762: " + window.innerWidth + "x" + window.innerHeight +
+      "\nUA: " + navigator.userAgent;
+  }
+  function close() { wrap.hidden = true; }
+  function mailto(text) {
+    location.href = "mailto:" + MAIL +
+      "?subject=" + encodeURIComponent("\u30108hammer Tools\u3011" + TOOL + " \u3078\u306E\u8981\u671B") +
+      "&body=" + encodeURIComponent(text);
+  }
+  btn.addEventListener("click", function () { wrap.hidden = false; document.getElementById("fbText").focus(); });
+  wrap.addEventListener("click", function (e) { if (e.target === wrap) close(); });
+  document.getElementById("fbCancel").addEventListener("click", close);
+  document.getElementById("fbCopy").addEventListener("click", function () {
+    if (navigator.clipboard) navigator.clipboard.writeText(buildText());
+    close();
+  });
+  document.getElementById("fbSend").addEventListener("click", function () {
+    var t = document.getElementById("fbText");
+    if (!t.value.trim()) { t.focus(); return; }
+    var text = buildText();
+    if (window.matchMedia("(pointer: coarse)").matches && navigator.share) {
+      navigator.share({ text: text }).then(close).catch(function (e) {
+        if (e && e.name === "AbortError") return;
+        mailto(text); close();
+      });
+    } else { mailto(text); close(); }
+  });
+})();
+</script>
 </body>
 </html>

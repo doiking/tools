@@ -1,5 +1,5 @@
 /* Roughcut service worker: cache-first so the app works offline on set. */
-const CACHE = "roughcut-v4";
+const CACHE = "roughcut-v5";
 const ASSETS = [
   "./",
   "./index.html",

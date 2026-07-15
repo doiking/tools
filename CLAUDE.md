@@ -66,6 +66,13 @@ toolname/
 - 共有キャンセル(`AbortError`)は黙って無視する
 - CEPパネル(roughcut-premiere)はPWA系ルール(viewport/safe-area/theme-color/共有シート)の対象外
 
+## 要望収集ウィジェット
+
+- 全Webツールの `</body>` 直前に共通ウィジェット(`#fbBtn`、絵コンテのindex.html末尾参照)を入れる
+- 📮ボタン → モーダル記入 → タッチ端末は共有シート(`navigator.share`)、それ以外は `mailto:doi@8hammer.com`
+- ツール名・URL・画面サイズ・UAを自動添付(作業データは送らない旨を明記)
+- 下部に固定バーがあるツールは `bottom` オフセットを調整(scene-memo: 72px、prompter: 64px)
+
 ## コード規約
 
 - vanilla JS、`"use strict"`、`const $ = (id) => document.getElementById(id)`
