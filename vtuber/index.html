@@ -37,7 +37,7 @@
   }
   body.uihide #wrap { bottom: 16px; }
   #av { position: relative; height: 100%; will-change: transform; transform-origin: 50% 92%; }
-  #chara { height: 100%; width: auto; display: block; }
+  #chara, #chara2 { height: 100%; width: auto; display: block; }
   #imgAv { position: relative; height: 100%; }
   #imgAv img { height: 100%; width: auto; display: block; pointer-events: none; }
   #imEyes, #imMouth { position: absolute; left: 0; top: 0; }
@@ -169,7 +169,7 @@
         <ellipse cx="76" cy="228" rx="15" ry="10" fill="#e0a80f"/>
         <ellipse cx="124" cy="228" rx="15" ry="10" fill="#e0a80f"/>
         <!-- アホ毛 -->
-        <g id="ahoge">
+        <g class="ahoge" data-pivot="100 58">
           <path d="M100 58 Q 96 30 120 24 Q 103 32 106 52" fill="none" stroke="#d99e0b" stroke-width="6" stroke-linecap="round"/>
         </g>
         <!-- 体 -->
@@ -179,24 +179,24 @@
         <ellipse cx="100" cy="182" rx="43" ry="36" fill="#fff7e0"/>
         <!-- 羽(手) -->
         <ellipse cx="27" cy="152" rx="15" ry="27" fill="#eab308" transform="rotate(16 27 152)"/>
-        <g id="wingR">
+        <g class="wave" data-pivot="173 152">
           <ellipse cx="173" cy="152" rx="15" ry="27" fill="#eab308" transform="rotate(-16 173 152)"/>
         </g>
         <!-- 眉(怒り時のみ) -->
-        <g id="brows" hidden>
+        <g class="brows" hidden>
           <path d="M56 94 L82 103" stroke="#26262c" stroke-width="4.5" stroke-linecap="round"/>
           <path d="M144 94 L118 103" stroke="#26262c" stroke-width="4.5" stroke-linecap="round"/>
         </g>
         <!-- 目 -->
-        <g id="eyesO">
+        <g class="eyesO">
           <circle cx="70" cy="113" r="8.5" fill="#26262c"/><circle cx="73" cy="110" r="3" fill="#fff"/>
           <circle cx="130" cy="113" r="8.5" fill="#26262c"/><circle cx="133" cy="110" r="3" fill="#fff"/>
         </g>
-        <g id="eyesC" hidden>
+        <g class="eyesC" hidden>
           <path d="M61 113 Q 70 121 79 113" fill="none" stroke="#26262c" stroke-width="4.5" stroke-linecap="round"/>
           <path d="M121 113 Q 130 121 139 113" fill="none" stroke="#26262c" stroke-width="4.5" stroke-linecap="round"/>
         </g>
-        <g id="eyesH" hidden>
+        <g class="eyesH" hidden>
           <path d="M61 116 Q 70 106 79 116" fill="none" stroke="#26262c" stroke-width="4.5" stroke-linecap="round"/>
           <path d="M121 116 Q 130 106 139 116" fill="none" stroke="#26262c" stroke-width="4.5" stroke-linecap="round"/>
         </g>
@@ -204,12 +204,73 @@
         <ellipse cx="54" cy="132" rx="10" ry="6.5" fill="#ff9d9d" opacity=".5"/>
         <ellipse cx="146" cy="132" rx="10" ry="6.5" fill="#ff9d9d" opacity=".5"/>
         <!-- 口 -->
-        <g id="mC">
+        <g class="mC">
           <path d="M92 138 Q 100 146 108 138" fill="none" stroke="#c96a1d" stroke-width="4.5" stroke-linecap="round"/>
         </g>
-        <g id="mO" hidden>
+        <g class="mO" hidden>
           <ellipse cx="100" cy="143" rx="11" ry="13" fill="#7c2d12"/>
           <ellipse cx="100" cy="150" rx="6.5" ry="5.5" fill="#ff8f6d"/>
+        </g>
+      </svg>
+      <svg id="chara2" viewBox="0 0 200 250" xmlns="http://www.w3.org/2000/svg" hidden>
+        <!-- 影 -->
+        <ellipse cx="100" cy="240" rx="46" ry="7" fill="#000" opacity=".22"/>
+        <!-- アホ毛 -->
+        <g class="ahoge" data-pivot="100 36">
+          <path d="M100 38 Q 95 14 118 10 Q 102 16 104 32" fill="none" stroke="#3d2f26" stroke-width="5" stroke-linecap="round"/>
+        </g>
+        <!-- 後ろ髪 -->
+        <path d="M44 96 Q 38 32 100 30 Q 162 32 156 96 Q 160 132 146 144 L 54 144 Q 40 132 44 96 Z" fill="#46352a"/>
+        <!-- 脚 -->
+        <rect x="81" y="202" width="15" height="30" rx="7" fill="#2e2e38"/>
+        <rect x="104" y="202" width="15" height="30" rx="7" fill="#2e2e38"/>
+        <ellipse cx="88" cy="233" rx="13" ry="7" fill="#26262c"/>
+        <ellipse cx="112" cy="233" rx="13" ry="7" fill="#26262c"/>
+        <!-- 左腕 -->
+        <path d="M68 162 Q 54 170 52 194" stroke="#f7c114" stroke-width="14" fill="none" stroke-linecap="round"/>
+        <circle cx="52" cy="197" r="7" fill="#ffe0c7"/>
+        <!-- 右腕(キラキラで手を振る) -->
+        <g class="wave" data-pivot="132 162">
+          <path d="M132 162 Q 146 170 148 194" stroke="#f7c114" stroke-width="14" fill="none" stroke-linecap="round"/>
+          <circle cx="148" cy="197" r="7" fill="#ffe0c7"/>
+        </g>
+        <!-- 体(パーカー) -->
+        <path d="M66 162 Q 68 148 100 148 Q 132 148 134 162 L 139 204 Q 140 214 128 214 L 72 214 Q 60 214 61 204 Z" fill="#f7c114"/>
+        <path d="M100 150 L 100 178" stroke="#d99e0b" stroke-width="3"/>
+        <path d="M80 196 Q 100 206 120 196 L 120 212 L 80 212 Z" fill="#eab308"/>
+        <!-- 顔 -->
+        <ellipse cx="100" cy="96" rx="52" ry="49" fill="#ffe0c7"/>
+        <!-- 前髪 -->
+        <path d="M48 98 Q 44 38 100 34 Q 156 38 152 98 Q 145 76 135 86 Q 127 64 108 78 Q 100 62 89 78 Q 74 64 65 86 Q 55 76 48 98 Z" fill="#584231"/>
+        <rect x="125" y="76" width="17" height="5.5" rx="2.75" fill="#f7c114" transform="rotate(20 133 79)"/>
+        <!-- 眉(怒り時のみ) -->
+        <g class="brows" hidden>
+          <path d="M64 96 L84 103" stroke="#3d2f26" stroke-width="4" stroke-linecap="round"/>
+          <path d="M136 96 L116 103" stroke="#3d2f26" stroke-width="4" stroke-linecap="round"/>
+        </g>
+        <!-- 目 -->
+        <g class="eyesO">
+          <ellipse cx="76" cy="107" rx="6.5" ry="9" fill="#33261e"/><circle cx="78.5" cy="103.5" r="2.6" fill="#fff"/>
+          <ellipse cx="124" cy="107" rx="6.5" ry="9" fill="#33261e"/><circle cx="126.5" cy="103.5" r="2.6" fill="#fff"/>
+        </g>
+        <g class="eyesC" hidden>
+          <path d="M68 108 Q 76 115 84 108" fill="none" stroke="#3d2f26" stroke-width="4" stroke-linecap="round"/>
+          <path d="M116 108 Q 124 115 132 108" fill="none" stroke="#3d2f26" stroke-width="4" stroke-linecap="round"/>
+        </g>
+        <g class="eyesH" hidden>
+          <path d="M68 110 Q 76 101 84 110" fill="none" stroke="#3d2f26" stroke-width="4" stroke-linecap="round"/>
+          <path d="M116 110 Q 124 101 132 110" fill="none" stroke="#3d2f26" stroke-width="4" stroke-linecap="round"/>
+        </g>
+        <!-- ほっぺ -->
+        <ellipse cx="63" cy="121" rx="8.5" ry="5" fill="#ff9d9d" opacity=".5"/>
+        <ellipse cx="137" cy="121" rx="8.5" ry="5" fill="#ff9d9d" opacity=".5"/>
+        <!-- 口 -->
+        <g class="mC">
+          <path d="M93 129 Q 100 135 107 129" fill="none" stroke="#c9634a" stroke-width="3.5" stroke-linecap="round"/>
+        </g>
+        <g class="mO" hidden>
+          <ellipse cx="100" cy="133" rx="8" ry="9.5" fill="#7c2d12"/>
+          <ellipse cx="100" cy="138" rx="5" ry="4" fill="#ff8f6d"/>
         </g>
       </svg>
       <div id="imgAv" hidden>
@@ -262,6 +323,14 @@
     </div>
 
     <div class="sec">
+      <div class="lbl">キャラクター</div>
+      <div class="chips" id="chChips">
+        <button class="chip" data-ch="hiyoko">🐣 ひよこ</button>
+        <button class="chip" data-ch="human">🧑 人間</button>
+      </div>
+    </div>
+
+    <div class="sec">
       <div class="lbl">大きさ: <span id="sizeVal"></span>%</div>
       <input type="range" id="size" min="30" max="90" step="1">
     </div>
@@ -304,7 +373,7 @@
   /* ===== 設定 ===== */
   const PREF_KEY = "vtuber.v1";
   const IMG_KEY = "vtuber.img.v1";
-  const DEF = { bg: "none", custom: "#00b140", size: 58, posx: 0, fs: 20, name: "", speak: false };
+  const DEF = { bg: "none", custom: "#00b140", size: 58, posx: 0, fs: 20, name: "", speak: false, chara: "hiyoko" };
   let pref = { ...DEF };
   try { pref = { ...DEF, ...(JSON.parse(localStorage.getItem(PREF_KEY)) || {}) }; } catch (e) {}
   let imgs = {};
@@ -327,6 +396,8 @@
     // 設定UIへ反映
     document.querySelectorAll("#bgChips .chip").forEach((c) =>
       c.classList.toggle("sel", c.dataset.bg === pref.bg));
+    document.querySelectorAll("#chChips .chip").forEach((c) =>
+      c.classList.toggle("sel", c.dataset.ch === pref.chara));
     $("bgColor").value = pref.custom;
     $("size").value = pref.size; $("sizeVal").textContent = pref.size;
     $("posx").value = pref.posx;
@@ -337,7 +408,8 @@
 
   function applyImgs() {
     const useImg = !!imgs.base;
-    setShow("chara", !useImg);
+    setShow("chara", !useImg && pref.chara !== "human");
+    setShow("chara2", !useImg && pref.chara === "human");
     $("imgAv").hidden = !useImg;
     if (useImg) {
       $("imBase").src = imgs.base;
@@ -421,22 +493,28 @@
       if (e.type === "sparkle") jumpY = -Math.abs(Math.sin(p * Math.PI * 3)) * 7;
     }
 
-    // 顔パーツ切り替え(内蔵キャラ)
+    // 顔パーツ切り替え(内蔵キャラ: 表示中のSVG内をクラスで切り替え)
+    const av2 = pref.chara === "human" ? $("chara2") : $("chara");
+    const part = (cls, on) => {
+      const el = av2.querySelector("." + cls);
+      if (el) el.toggleAttribute("hidden", !on);
+    };
     const happyEyes = e && (e.type === "happy" || e.type === "sparkle");
-    setShow("eyesH", happyEyes && !blinking);
-    setShow("eyesC", blinking && !happyEyes);
-    setShow("eyesO", !blinking && !happyEyes);
-    setShow("brows", !!e && e.type === "angry");
+    part("eyesH", happyEyes && !blinking);
+    part("eyesC", blinking && !happyEyes);
+    part("eyesO", !blinking && !happyEyes);
+    part("brows", !!e && e.type === "angry");
     const openMouth = mouthOpen || (e && e.type === "surprise");
-    setShow("mO", !!openMouth);
-    setShow("mC", !openMouth);
+    part("mO", !!openMouth);
+    part("mC", !openMouth);
     setShow("fxEx", !!e && e.type === "surprise");
     setShow("fxAng", !!e && e.type === "angry");
     setShow("fxSpk", !!e && e.type === "sparkle" && Math.floor(t / 160) % 2 === 0);
+    const wave = av2.querySelector(".wave");
     if (e && e.type === "sparkle") {
-      $("wingR").setAttribute("transform", `rotate(${Math.sin(p * Math.PI * 4) * 28} 173 152)`);
+      wave.setAttribute("transform", `rotate(${Math.sin(p * Math.PI * 4) * 28} ${wave.dataset.pivot})`);
     } else {
-      $("wingR").removeAttribute("transform");
+      wave.removeAttribute("transform");
     }
 
     // 画像差し替えモード
@@ -451,7 +529,8 @@
     const breath = 1 + Math.sin(t / 1100) * 0.008;
     $("av").style.transform =
       `translate(${shakeX}px, ${bob + jumpY}px) rotate(${rot}deg) scale(${breath})`;
-    $("ahoge").setAttribute("transform", `rotate(${Math.sin(t / 500) * 6} 100 58)`);
+    const ah = av2.querySelector(".ahoge");
+    ah.setAttribute("transform", `rotate(${Math.sin(t / 500) * 6} ${ah.dataset.pivot})`);
 
     requestAnimationFrame(loop);
   }
@@ -486,6 +565,8 @@
 
   document.querySelectorAll("#bgChips .chip").forEach((c) =>
     c.addEventListener("click", () => { pref.bg = c.dataset.bg; save(); applyPref(); }));
+  document.querySelectorAll("#chChips .chip").forEach((c) =>
+    c.addEventListener("click", () => { pref.chara = c.dataset.ch; save(); applyPref(); applyImgs(); }));
   $("bgColor").addEventListener("input", () => {
     pref.bg = "custom"; pref.custom = $("bgColor").value; save(); applyPref();
   });

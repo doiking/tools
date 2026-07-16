@@ -1,5 +1,5 @@
 /* Vアバター service worker: cache-first so the app works offline. */
-const CACHE = "vtuber-v1";
+const CACHE = "vtuber-v2";
 const ASSETS = [
   "./",
   "./index.html",
