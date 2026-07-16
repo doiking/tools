@@ -38,6 +38,9 @@
   body.uihide #wrap { bottom: 16px; }
   #av { position: relative; height: 100%; will-change: transform; transform-origin: 50% 92%; }
   #chara, #chara2 { height: 100%; width: auto; display: block; }
+  #chara3 { position: relative; height: 100%; }
+  #chara3 img { height: 100%; width: auto; display: block; pointer-events: none; }
+  #chara3 .mO { position: absolute; left: 0; top: 0; }
   #imgAv { position: relative; height: 100%; }
   #imgAv img { height: 100%; width: auto; display: block; pointer-events: none; }
   #imEyes, #imMouth { position: absolute; left: 0; top: 0; }
@@ -273,6 +276,10 @@
           <ellipse cx="100" cy="138" rx="5" ry="4" fill="#ff8f6d"/>
         </g>
       </svg>
+      <div id="chara3" hidden>
+        <img src="img/neko-base.png" alt="">
+        <img class="mO" src="img/neko-open.png" alt="" hidden>
+      </div>
       <div id="imgAv" hidden>
         <img id="imBase" alt=""><img id="imEyes" alt="" hidden><img id="imMouth" alt="" hidden>
       </div>
@@ -325,6 +332,7 @@
     <div class="sec">
       <div class="lbl">キャラクター</div>
       <div class="chips" id="chChips">
+        <button class="chip" data-ch="neko">🐱 ねこみみ</button>
         <button class="chip" data-ch="hiyoko">🐣 ひよこ</button>
         <button class="chip" data-ch="human">🧑 人間</button>
       </div>
@@ -373,7 +381,8 @@
   /* ===== 設定 ===== */
   const PREF_KEY = "vtuber.v1";
   const IMG_KEY = "vtuber.img.v1";
-  const DEF = { bg: "none", custom: "#00b140", size: 58, posx: 0, fs: 20, name: "", speak: false, chara: "hiyoko" };
+  const DEF = { bg: "none", custom: "#00b140", size: 58, posx: 0, fs: 20, name: "", speak: false, chara: "neko" };
+  const CHARAS = { hiyoko: "chara", human: "chara2", neko: "chara3" };
   let pref = { ...DEF };
   try { pref = { ...DEF, ...(JSON.parse(localStorage.getItem(PREF_KEY)) || {}) }; } catch (e) {}
   let imgs = {};
@@ -408,8 +417,8 @@
 
   function applyImgs() {
     const useImg = !!imgs.base;
-    setShow("chara", !useImg && pref.chara !== "human");
-    setShow("chara2", !useImg && pref.chara === "human");
+    const cur = CHARAS[pref.chara] || "chara3";
+    Object.values(CHARAS).forEach((id) => setShow(id, !useImg && id === cur));
     $("imgAv").hidden = !useImg;
     if (useImg) {
       $("imBase").src = imgs.base;
@@ -494,7 +503,7 @@
     }
 
     // 顔パーツ切り替え(内蔵キャラ: 表示中のSVG内をクラスで切り替え)
-    const av2 = pref.chara === "human" ? $("chara2") : $("chara");
+    const av2 = $(CHARAS[pref.chara] || "chara3");
     const part = (cls, on) => {
       const el = av2.querySelector("." + cls);
       if (el) el.toggleAttribute("hidden", !on);
@@ -511,10 +520,12 @@
     setShow("fxAng", !!e && e.type === "angry");
     setShow("fxSpk", !!e && e.type === "sparkle" && Math.floor(t / 160) % 2 === 0);
     const wave = av2.querySelector(".wave");
-    if (e && e.type === "sparkle") {
-      wave.setAttribute("transform", `rotate(${Math.sin(p * Math.PI * 4) * 28} ${wave.dataset.pivot})`);
-    } else {
-      wave.removeAttribute("transform");
+    if (wave) {
+      if (e && e.type === "sparkle") {
+        wave.setAttribute("transform", `rotate(${Math.sin(p * Math.PI * 4) * 28} ${wave.dataset.pivot})`);
+      } else {
+        wave.removeAttribute("transform");
+      }
     }
 
     // 画像差し替えモード
@@ -530,7 +541,7 @@
     $("av").style.transform =
       `translate(${shakeX}px, ${bob + jumpY}px) rotate(${rot}deg) scale(${breath})`;
     const ah = av2.querySelector(".ahoge");
-    ah.setAttribute("transform", `rotate(${Math.sin(t / 500) * 6} ${ah.dataset.pivot})`);
+    if (ah) ah.setAttribute("transform", `rotate(${Math.sin(t / 500) * 6} ${ah.dataset.pivot})`);
 
     requestAnimationFrame(loop);
   }

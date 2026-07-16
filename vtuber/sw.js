@@ -1,9 +1,11 @@
 /* Vアバター service worker: cache-first so the app works offline. */
-const CACHE = "vtuber-v2";
+const CACHE = "vtuber-v3";
 const ASSETS = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
+  "./img/neko-base.png",
+  "./img/neko-open.png",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/apple-touch-icon.png"
