@@ -1,0 +1,15 @@
+{
+  "name": "Vアバター — 8hammer",
+  "short_name": "Vアバター",
+  "description": "テキスト入力で吹き出し&口パクするVTuberふうマスコット。透過/クロマ背景でOBS・収録素材に",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0e0e11",
+  "theme_color": "#0b0b0e",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
