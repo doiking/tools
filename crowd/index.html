@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>人数カウント — 8hammer</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { height: 100%; }
+  body {
+    margin: 0; min-height: 100%;
+    background: #0e0e11; color: #f2f2ee;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    -webkit-user-select: none; user-select: none;
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+  header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px 8px;
+  }
+  header h1 { font-size: 15px; font-weight: 700; margin: 0; flex: 1; }
+  header .privacy { font-size: 10px; color: #9a9aa4; text-align: right; line-height: 1.5; }
+
+  main { padding: 0 12px; max-width: 980px; margin: 0 auto; }
+
+  /* ===== 映像ステージ ===== */
+  #stage {
+    position: relative; width: 100%;
+    background: #16161b; border: 1px solid #33333c; border-radius: 14px;
+    overflow: hidden; aspect-ratio: 16 / 10;
+  }
+  #video, #view { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  #video { display: none; }
+  #idle {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 10px;
+    color: #9a9aa4; font-size: 13px; text-align: center; padding: 16px; line-height: 1.9;
+  }
+  #idle .big { font-size: 40px; }
+  #count {
+    position: absolute; top: 10px; right: 12px;
+    background: rgba(14,14,17,.82); border: 1.5px solid #f7c114;
+    border-radius: 14px; padding: 6px 18px; text-align: center;
+  }
+  #count .n { font-size: 44px; font-weight: 800; color: #f7c114; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  #count .u { font-size: 11px; color: #9a9aa4; }
+  #srcTag {
+    position: absolute; top: 10px; left: 12px;
+    background: rgba(14,14,17,.82); border: 1px solid #33333c;
+    border-radius: 999px; padding: 4px 12px; font-size: 11px; color: #9a9aa4;
+  }
+  #recDot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: #ff5c5c; margin-right: 5px;
+    animation: blink 1.2s infinite;
+  }
+  @keyframes blink { 50% { opacity: .25; } }
+  [hidden] { display: none !important; }
+
+  /* ===== 記録・統計 ===== */
+  #statsRow {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+    margin: 12px 0;
+  }
+  .stat {
+    background: #1c1c22; border: 1px solid #33333c; border-radius: 12px;
+    padding: 10px 8px; text-align: center;
+  }
+  .stat .v { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stat .k { font-size: 10px; color: #9a9aa4; margin-top: 2px; }
+  #chartBox {
+    background: #1c1c22; border: 1px solid #33333c; border-radius: 12px;
+    padding: 12px; margin-bottom: 12px;
+  }
+  #chartBox .ttl { font-size: 11px; color: #9a9aa4; font-weight: 600; margin-bottom: 8px; display: flex; }
+  #chartBox .ttl span { flex: 1; }
+  #chartBox button {
+    background: none; border: none; color: #9a9aa4; font-size: 11px;
+    cursor: pointer; font-family: inherit; padding: 0;
+  }
+  #chartBox button:hover { color: #f7c114; }
+  #chart { width: 100%; height: 110px; display: block; }
+
+  .hint { font-size: 11px; color: #9a9aa4; line-height: 1.9; margin: 10px 2px 16px; }
+
+  /* ===== 下部バー ===== */
+  #bar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    background: rgba(18,18,23,.94); border-top: 1px solid #33333c;
+    overflow-x: auto;
+  }
+  #bar button, #bar select, #bar label.file {
+    flex: none; height: 42px;
+    background: #24242c; color: #f2f2ee;
+    border: 1px solid #33333c; border-radius: 10px;
+    font-size: 13px; font-weight: 600; padding: 0 13px;
+    cursor: pointer; font-family: inherit;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  #bar button:hover, #bar select:hover, #bar label.file:hover { border-color: #f7c114; }
+  #bar button.acc { background: #f7c114; border-color: #f7c114; color: #17130a; font-weight: 700; }
+  #bar button.on { border-color: #f7c114; color: #f7c114; }
+  #bar .sp { flex: 1; min-width: 4px; }
+  #thWrap {
+    flex: none; display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: #9a9aa4;
+  }
+  #th { width: 90px; accent-color: #f7c114; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>👥 人数カウント</h1>
+  <div class="privacy">映像は端末内で処理・外部送信なし<br>録画は保存されません</div>
+</header>
+
+<main>
+  <div id="stage">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="view"></canvas>
+    <div id="idle">
+      <div class="big">👥</div>
+      <div id="idleMsg">AIモデルを読み込み中…</div>
+    </div>
+    <div id="srcTag" hidden></div>
+    <div id="count" hidden><div class="n" id="countN">0</div><div class="u">人</div></div>
+  </div>
+
+  <div id="statsRow">
+    <div class="stat"><div class="v" id="stNow">–</div><div class="k">現在</div></div>
+    <div class="stat"><div class="v" id="stMax">–</div><div class="k">最大</div></div>
+    <div class="stat"><div class="v" id="stAvg">–</div><div class="k">平均</div></div>
+    <div class="stat"><div class="v" id="stCnt">0</div><div class="k">記録点数</div></div>
+  </div>
+
+  <div id="chartBox">
+    <div class="ttl"><span>記録グラフ(<span id="ivLabel">5</span>秒ごと)</span><button id="clearLog">記録をクリア</button></div>
+    <canvas id="chart"></canvas>
+  </div>
+
+  <p class="hint">
+    📌 カメラを会場に向けて「記録」を押すと一定間隔で人数を自動記録します。混雑で人が重なると実際より少なく出ます(目安としてご利用ください)。
+    しきい値を下げると拾いやすく、誤検出も増えます。写真ボタンで会場写真からのカウントもできます。
+  </p>
+</main>
+
+<div id="bar">
+  <button id="camBtn" class="acc">📷 カメラ開始</button>
+  <button id="flipBtn" title="カメラ切替" hidden>🔄</button>
+  <label class="file" for="photoFile">🖼 写真</label>
+  <input type="file" id="photoFile" accept="image/*" hidden>
+  <div id="thWrap">しきい値<input type="range" id="th" min="15" max="70" step="5"><span id="thVal"></span>%</div>
+  <div class="sp"></div>
+  <select id="ivSel" title="記録間隔">
+    <option value="1">1秒ごと</option>
+    <option value="5" selected>5秒ごと</option>
+    <option value="10">10秒ごと</option>
+    <option value="30">30秒ごと</option>
+    <option value="60">1分ごと</option>
+  </select>
+  <button id="recBtn">⏺ 記録</button>
+  <button id="csvBtn">CSV保存</button>
+</div>
+
+<script type="module">
+  "use strict";
+  import { FilesetResolver, ObjectDetector } from "./vendor/vision_bundle.mjs";
+  const $ = (id) => document.getElementById(id);
+
+  /* ===== 設定・記録の永続化 ===== */
+  const KEY = "crowd.v1";
+  const DEF = { th: 35, iv: 5, log: [] };
+  let state = { ...DEF };
+  try { state = { ...DEF, ...(JSON.parse(localStorage.getItem(KEY)) || {}) }; } catch (e) {}
+  const save = () => {
+    if (state.log.length > 20000) state.log = state.log.slice(-20000);
+    localStorage.setItem(KEY, JSON.stringify(state));
+  };
+
+  /* ===== AIモデル ===== */
+  let detector = null;
+  let mode = "";            // "" | "video" | "image"
+  async function ensureDetector(runningMode) {
+    if (detector && mode === runningMode) return detector;
+    $("idleMsg").textContent = "AIモデルを読み込み中…";
+    if (detector) { detector.close(); detector = null; }
+    const fileset = await FilesetResolver.forVisionTasks("vendor/wasm");
+    const make = (delegate) => ObjectDetector.createFromOptions(fileset, {
+      baseOptions: { modelAssetPath: "vendor/efficientdet_lite0.tflite", delegate },
+      runningMode: runningMode === "video" ? "VIDEO" : "IMAGE",
+      scoreThreshold: 0.12,
+      maxResults: 60,
+      categoryAllowlist: ["person"],
+    });
+    try { detector = await make("GPU"); }
+    catch (e) { detector = await make("CPU"); }
+    mode = runningMode;
+    return detector;
+  }
+
+  /* ===== カメラ ===== */
+  let stream = null, running = false, lastVT = -1;
+  let devices = [], devIdx = 0;
+  const counts = [];        // 直近カウント(ちらつき平滑用)
+
+  async function startCam() {
+    $("idleMsg").textContent = "カメラを起動中…";
+    $("idle").hidden = false;
+    try {
+      const dev = devices[devIdx];
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: dev ? { deviceId: { exact: dev.deviceId }, width: { ideal: 1280 } }
+                   : { facingMode: "environment", width: { ideal: 1280 } },
+        audio: false,
+      });
+    } catch (e) {
+      $("idleMsg").textContent = "カメラを起動できませんでした: " + e.message +
+        "(ブラウザのカメラ許可と、HTTPSでのアクセスを確認してください)";
+      return;
+    }
+    $("video").srcObject = stream;
+    await new Promise((r) => { $("video").onloadedmetadata = r; });
+    await $("video").play();
+    await ensureDetector("video");
+    if (devices.length === 0) {
+      try {
+        devices = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "videoinput");
+      } catch (e) {}
+      $("flipBtn").hidden = devices.length < 2;
+    }
+    running = true; lastVT = -1; counts.length = 0;
+    $("idle").hidden = true;
+    $("count").hidden = false;
+    $("srcTag").hidden = false;
+    updateSrcTag();
+    $("camBtn").textContent = "⏹ カメラ停止";
+    $("camBtn").classList.remove("acc");
+    loop();
+  }
+
+  function stopCam() {
+    running = false;
+    if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; }
+    $("video").srcObject = null;
+    stopRec();
+    $("camBtn").textContent = "📷 カメラ開始";
+    $("camBtn").classList.add("acc");
+    $("count").hidden = true;
+    $("srcTag").hidden = true;
+    $("idle").hidden = false;
+    $("idleMsg").textContent = "「カメラ開始」を押してください";
+    const cx = $("view").getContext("2d");
+    cx.clearRect(0, 0, $("view").width, $("view").height);
+  }
+
+  function updateSrcTag() {
+    $("srcTag").innerHTML = "";
+    if (recTimer) {
+      const dot = document.createElement("span"); dot.id = "recDot";
+      $("srcTag").appendChild(dot);
+    }
+    $("srcTag").appendChild(document.createTextNode(
+      recTimer ? "記録中(" + state.iv + "秒ごと)" : "ライブ"));
+  }
+
+  /* ===== 検出ループ ===== */
+  function smoothed() {
+    if (!counts.length) return 0;
+    const s = [...counts].sort((a, b) => a - b);
+    return s[Math.floor(s.length / 2)];   // 中央値
+  }
+
+  async function loop() {
+    if (!running) return;
+    const v = $("video");
+    if (v.currentTime !== lastVT && v.videoWidth) {
+      lastVT = v.currentTime;
+      const res = detector.detectForVideo(v, performance.now());
+      const dets = res.detections.filter((d) => (d.categories[0]?.score || 0) >= state.th / 100);
+      counts.push(dets.length);
+      if (counts.length > 7) counts.shift();
+      drawVideo(v, dets);
+      $("countN").textContent = smoothed();
+      $("stNow").textContent = smoothed();
+    }
+    setTimeout(loop, 120);   // ~8fps(カウント用途には十分・発熱を抑える)
+  }
+
+  function drawVideo(v, dets) {
+    const cv = $("view");
+    if (cv.width !== v.videoWidth) { cv.width = v.videoWidth; cv.height = v.videoHeight; }
+    const cx = cv.getContext("2d");
+    cx.drawImage(v, 0, 0);
+    drawBoxes(cx, dets);
+  }
+
+  function drawBoxes(cx, dets) {
+    cx.lineWidth = Math.max(2, cx.canvas.width / 400);
+    cx.strokeStyle = "#f7c114";
+    cx.fillStyle = "rgba(247,193,20,.14)";
+    for (const d of dets) {
+      const b = d.boundingBox;
+      cx.fillRect(b.originX, b.originY, b.width, b.height);
+      cx.strokeRect(b.originX, b.originY, b.width, b.height);
+    }
+  }
+
+  /* ===== 写真からカウント ===== */
+  $("photoFile").addEventListener("change", async () => {
+    const file = $("photoFile").files[0];
+    $("photoFile").value = "";
+    if (!file) return;
+    if (running) stopCam();
+    $("idle").hidden = false;
+    const img = new Image();
+    img.onload = async () => {
+      await ensureDetector("image");
+      const res = detector.detect(img);
+      const dets = res.detections.filter((d) => (d.categories[0]?.score || 0) >= state.th / 100);
+      const cv = $("view");
+      cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+      const cx = cv.getContext("2d");
+      cx.drawImage(img, 0, 0);
+      drawBoxes(cx, dets);
+      $("idle").hidden = true;
+      $("count").hidden = false;
+      $("countN").textContent = dets.length;
+      $("stNow").textContent = dets.length;
+      $("srcTag").hidden = false;
+      $("srcTag").textContent = "写真: " + file.name;
+      URL.revokeObjectURL(img.src);
+    };
+    img.src = URL.createObjectURL(file);
+  });
+
+  /* ===== 記録 ===== */
+  let recTimer = 0;
+  function snap() {
+    state.log.push({ t: Date.now(), n: smoothed() });
+    save();
+    renderStats();
+  }
+  function startRec() {
+    if (!running) return;
+    recTimer = setInterval(snap, state.iv * 1000);
+    snap();
+    $("recBtn").textContent = "⏸ 記録停止";
+    $("recBtn").classList.add("on");
+    updateSrcTag();
+  }
+  function stopRec() {
+    if (!recTimer) return;
+    clearInterval(recTimer); recTimer = 0;
+    $("recBtn").textContent = "⏺ 記録";
+    $("recBtn").classList.remove("on");
+    if (running) updateSrcTag();
+  }
+  $("recBtn").addEventListener("click", () => { recTimer ? stopRec() : startRec(); });
+
+  function renderStats() {
+    const L = state.log;
+    $("stCnt").textContent = L.length;
+    if (L.length) {
+      $("stMax").textContent = Math.max(...L.map((e) => e.n));
+      $("stAvg").textContent = (L.reduce((a, e) => a + e.n, 0) / L.length).toFixed(1);
+    } else {
+      $("stMax").textContent = "–"; $("stAvg").textContent = "–";
+    }
+    drawChart();
+  }
+
+  function drawChart() {
+    const cv = $("chart");
+    const W = cv.clientWidth * devicePixelRatio, H = cv.clientHeight * devicePixelRatio;
+    if (cv.width !== W) { cv.width = W; cv.height = H; }
+    const cx = cv.getContext("2d");
+    cx.clearRect(0, 0, W, H);
+    const L = state.log;
+    if (L.length < 2) {
+      cx.fillStyle = "#9a9aa4"; cx.font = 11 * devicePixelRatio + "px sans-serif";
+      cx.textAlign = "center";
+      cx.fillText("記録を開始するとグラフが表示されます", W / 2, H / 2);
+      return;
+    }
+    const max = Math.max(1, ...L.map((e) => e.n));
+    const px = (i) => 4 + (W - 8) * i / (L.length - 1);
+    const py = (n) => H - 14 - (H - 26) * n / max;
+    // 目盛り(最大値)
+    cx.strokeStyle = "#33333c"; cx.lineWidth = 1;
+    cx.beginPath(); cx.moveTo(0, py(max)); cx.lineTo(W, py(max)); cx.stroke();
+    cx.fillStyle = "#9a9aa4"; cx.font = 10 * devicePixelRatio + "px sans-serif";
+    cx.textAlign = "left";
+    cx.fillText(max + "人", 4, py(max) - 4 * devicePixelRatio);
+    // 面+線
+    cx.beginPath();
+    L.forEach((e, i) => { i ? cx.lineTo(px(i), py(e.n)) : cx.moveTo(px(i), py(e.n)); });
+    cx.strokeStyle = "#f7c114"; cx.lineWidth = 2 * devicePixelRatio; cx.stroke();
+    cx.lineTo(px(L.length - 1), H - 14); cx.lineTo(px(0), H - 14); cx.closePath();
+    cx.fillStyle = "rgba(247,193,20,.12)"; cx.fill();
+    // 時刻ラベル(最初と最後)
+    const fmt = (t) => new Date(t).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
+    cx.fillStyle = "#9a9aa4"; cx.textAlign = "left";
+    cx.fillText(fmt(L[0].t), 4, H - 3);
+    cx.textAlign = "right";
+    cx.fillText(fmt(L[L.length - 1].t), W - 4, H - 3);
+  }
+
+  $("clearLog").addEventListener("click", () => {
+    if (!state.log.length) return;
+    if (!confirm("記録(" + state.log.length + "点)をクリアしますか?")) return;
+    state.log = []; save(); renderStats();
+  });
+
+  /* ===== CSV書き出し(共通 saveFile パターン) ===== */
+  async function saveFile(blob, filename) {
+    const file = new File([blob], filename, { type: blob.type });
+    if (window.matchMedia("(pointer: coarse)").matches &&
+        navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file] }); return; }
+      catch (e) { if (e && e.name === "AbortError") return; }
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }
+  $("csvBtn").addEventListener("click", () => {
+    if (!state.log.length) { alert("記録がまだありません。「記録」を押して人数を記録してください。"); return; }
+    const pad = (n) => String(n).padStart(2, "0");
+    const rows = ["日時,人数"];
+    for (const e of state.log) {
+      const d = new Date(e.t);
+      rows.push(`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())},${e.n}`);
+    }
+    const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+    saveFile(new Blob([bom, rows.join("\r\n")], { type: "text/csv" }),
+      "人数記録_" + new Date().toISOString().slice(0, 10) + ".csv");
+  });
+
+  /* ===== UIイベント ===== */
+  $("camBtn").addEventListener("click", () => { running ? stopCam() : startCam(); });
+  $("flipBtn").addEventListener("click", async () => {
+    if (!running) return;
+    devIdx = (devIdx + 1) % devices.length;
+    stopCam(); await startCam();
+  });
+  $("th").addEventListener("input", () => {
+    state.th = +$("th").value; $("thVal").textContent = state.th; save();
+  });
+  $("ivSel").addEventListener("change", () => {
+    state.iv = +$("ivSel").value;
+    $("ivLabel").textContent = state.iv;
+    save();
+    if (recTimer) { stopRec(); startRec(); }
+  });
+
+  /* ===== 初期化 ===== */
+  $("th").value = state.th; $("thVal").textContent = state.th;
+  $("ivSel").value = String(state.iv); $("ivLabel").textContent = state.iv;
+  renderStats();
+  addEventListener("resize", drawChart);
+
+  // モデルを先読み(起動を速く)
+  ensureDetector("video").then(() => {
+    $("idleMsg").textContent = "「カメラ開始」を押してください";
+  }).catch((e) => {
+    $("idleMsg").textContent = "AIモデルの読み込みに失敗しました: " + e.message;
+  });
+
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+</script>
+
+<!-- 要望・不具合の送信(全ツール共通ウィジェット) -->
+<script>
+(function () {
+  "use strict";
+  var TOOL = "人数カウント";
+  var MAIL = "doi@8hammer.com";
+  var st = document.createElement("style");
+  st.textContent =
+    "#fbBtn{position:fixed;right:14px;bottom:76px;z-index:40;width:36px;height:36px;border-radius:50%;" +
+    "background:#1c1c22;color:#9a9aa4;border:1px solid #33333c;font-size:16px;padding:0;cursor:pointer;opacity:.6;}" +
+    "#fbBtn:hover,#fbBtn:active{opacity:1;border-color:#f7c114;color:#f7c114;}" +
+    "#fbWrap{position:fixed;inset:0;z-index:41;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px;}" +
+    "#fbWrap[hidden]{display:none;}" +
+    "#fbBox{width:min(92vw,400px);background:#1c1c22;color:#f2f2ee;border:1px solid #33333c;border-radius:14px;padding:16px;" +
+    "display:flex;flex-direction:column;gap:10px;font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Noto Sans JP',sans-serif;}" +
+    "#fbBox h2{font-size:14px;font-weight:700;margin:0;}" +
+    "#fbText{width:100%;background:#16161b;color:#f2f2ee;border:1px solid #33333c;border-radius:9px;font-size:14px;line-height:1.7;" +
+    "padding:10px;resize:vertical;font-family:inherit;-webkit-user-select:text;user-select:text;}" +
+    "#fbText:focus{outline:none;border-color:#f7c114;}" +
+    "#fbNote{font-size:11px;color:#9a9aa4;line-height:1.7;}" +
+    "#fbBtns{display:flex;gap:8px;justify-content:flex-end;}" +
+    "#fbBtns button{background:#24242c;color:#f2f2ee;border:1px solid #33333c;border-radius:9px;font-size:13px;font-weight:600;" +
+    "padding:9px 14px;cursor:pointer;font-family:inherit;}" +
+    "#fbBtns button:hover,#fbBtns button:active{border-color:#f7c114;}" +
+    "#fbBtns button.acc{background:#f7c114;color:#17130a;border-color:#f7c114;font-weight:700;}" +
+    "#fbCopy{margin-right:auto;}";
+  document.head.appendChild(st);
+
+  var btn = document.createElement("button");
+  btn.id = "fbBtn";
+  btn.title = "要望・不具合を送る";
+  btn.textContent = "📮";
+  document.body.appendChild(btn);
+
+  var wrap = document.createElement("div");
+  wrap.id = "fbWrap";
+  wrap.hidden = true;
+  wrap.innerHTML =
+    '<div id="fbBox"><h2>📮 要望・不具合を送る — ' + TOOL + "</h2>" +
+    '<textarea id="fbText" rows="5" placeholder="例: ○○ができると助かる / ○○のときに表示が崩れる など"></textarea>' +
+    '<div id="fbNote">送信すると共有シート(またはメール作成画面)が開きます。ツール名・画面サイズなどの環境情報を自動で添付します(作業データは送られません)。</div>' +
+    '<div id="fbBtns"><button id="fbCopy">コピー</button><button id="fbCancel">キャンセル</button><button id="fbSend" class="acc">送信</button></div></div>';
+  document.body.appendChild(wrap);
+
+  function buildText() {
+    var body = document.getElementById("fbText").value.trim();
+    return "【要望・不具合】" + TOOL + "\n" + body +
+      "\n\n--- 環境情報 ---" +
+      "\nツール: " + TOOL +
+      "\nURL: " + location.href +
+      "\n画面: " + window.innerWidth + "x" + window.innerHeight +
+      "\nUA: " + navigator.userAgent;
+  }
+  function close() { wrap.hidden = true; }
+  function mailto(text) {
+    location.href = "mailto:" + MAIL +
+      "?subject=" + encodeURIComponent("【8hammer Tools】" + TOOL + " への要望") +
+      "&body=" + encodeURIComponent(text);
+  }
+  btn.addEventListener("click", function () { wrap.hidden = false; document.getElementById("fbText").focus(); });
+  wrap.addEventListener("click", function (e) { if (e.target === wrap) close(); });
+  document.getElementById("fbCancel").addEventListener("click", close);
+  document.getElementById("fbCopy").addEventListener("click", function () {
+    if (navigator.clipboard) navigator.clipboard.writeText(buildText());
+    close();
+  });
+  document.getElementById("fbSend").addEventListener("click", function () {
+    var t = document.getElementById("fbText");
+    if (!t.value.trim()) { t.focus(); return; }
+    var text = buildText();
+    if (window.matchMedia("(pointer: coarse)").matches && navigator.share) {
+      navigator.share({ text: text }).then(close).catch(function (e) {
+        if (e && e.name === "AbortError") return;
+        mailto(text); close();
+      });
+    } else { mailto(text); close(); }
+  });
+})();
+</script>
+</body>
+</html>
