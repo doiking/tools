@@ -1,5 +1,5 @@
 /* 人数カウント service worker: cache-first so the app works offline. */
-const CACHE = "crowd-v1";
+const CACHE = "crowd-v2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -8,6 +8,7 @@ const ASSETS = [
   "./vendor/wasm/vision_wasm_internal.js",
   "./vendor/wasm/vision_wasm_internal.wasm",
   "./vendor/efficientdet_lite0.tflite",
+  "./vendor/efficientdet_lite2.tflite",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/apple-touch-icon.png"

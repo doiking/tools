@@ -159,6 +159,10 @@
   <label class="file" for="photoFile">🖼 写真</label>
   <input type="file" id="photoFile" accept="image/*" hidden>
   <div id="thWrap">しきい値<input type="range" id="th" min="15" max="70" step="5"><span id="thVal"></span>%</div>
+  <select id="modelSel" title="検出モデル">
+    <option value="lite2" selected>高精度</option>
+    <option value="lite0">軽量</option>
+  </select>
   <div class="sp"></div>
   <select id="ivSel" title="記録間隔">
     <option value="1">1秒ごと</option>
@@ -178,7 +182,8 @@
 
   /* ===== 設定・記録の永続化 ===== */
   const KEY = "crowd.v1";
-  const DEF = { th: 35, iv: 5, log: [] };
+  const DEF = { th: 30, iv: 5, log: [], model: "lite2" };
+  const MODELS = { lite0: "vendor/efficientdet_lite0.tflite", lite2: "vendor/efficientdet_lite2.tflite" };
   let state = { ...DEF };
   try { state = { ...DEF, ...(JSON.parse(localStorage.getItem(KEY)) || {}) }; } catch (e) {}
   const save = () => {
@@ -189,13 +194,15 @@
   /* ===== AIモデル ===== */
   let detector = null;
   let mode = "";            // "" | "video" | "image"
+  let curKey = "";          // runningMode + モデルの組(切替検知用)
   async function ensureDetector(runningMode) {
-    if (detector && mode === runningMode) return detector;
+    const key = runningMode + ":" + state.model;
+    if (detector && curKey === key) return detector;
     $("idleMsg").textContent = "AIモデルを読み込み中…";
-    if (detector) { detector.close(); detector = null; }
+    if (detector) { const d = detector; detector = null; d.close(); }
     const fileset = await FilesetResolver.forVisionTasks("vendor/wasm");
     const make = (delegate) => ObjectDetector.createFromOptions(fileset, {
-      baseOptions: { modelAssetPath: "vendor/efficientdet_lite0.tflite", delegate },
+      baseOptions: { modelAssetPath: MODELS[state.model] || MODELS.lite2, delegate },
       runningMode: runningMode === "video" ? "VIDEO" : "IMAGE",
       scoreThreshold: 0.12,
       maxResults: 60,
@@ -203,7 +210,7 @@
     });
     try { detector = await make("GPU"); }
     catch (e) { detector = await make("CPU"); }
-    mode = runningMode;
+    mode = runningMode; curKey = key;
     return detector;
   }
 
@@ -282,7 +289,7 @@
   async function loop() {
     if (!running) return;
     const v = $("video");
-    if (v.currentTime !== lastVT && v.videoWidth) {
+    if (detector && v.currentTime !== lastVT && v.videoWidth) {
       lastVT = v.currentTime;
       const res = detector.detectForVideo(v, performance.now());
       const dets = res.detections.filter((d) => (d.categories[0]?.score || 0) >= state.th / 100);
@@ -457,6 +464,13 @@
   $("th").addEventListener("input", () => {
     state.th = +$("th").value; $("thVal").textContent = state.th; save();
   });
+  $("modelSel").addEventListener("change", async () => {
+    state.model = $("modelSel").value; save();
+    if (curKey) {
+      await ensureDetector(mode || "video");   // 動作中でも作り直して続行
+      if (running) $("idle").hidden = true;
+    }
+  });
   $("ivSel").addEventListener("change", () => {
     state.iv = +$("ivSel").value;
     $("ivLabel").textContent = state.iv;
@@ -467,6 +481,7 @@
   /* ===== 初期化 ===== */
   $("th").value = state.th; $("thVal").textContent = state.th;
   $("ivSel").value = String(state.iv); $("ivLabel").textContent = state.iv;
+  $("modelSel").value = MODELS[state.model] ? state.model : "lite2";
   renderStats();
   addEventListener("resize", drawChart);
 
