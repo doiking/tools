@@ -1,5 +1,5 @@
 /* 人数カウント service worker: cache-first so the app works offline. */
-const CACHE = "crowd-v2";
+const CACHE = "crowd-v3";
 const ASSETS = [
   "./",
   "./index.html",

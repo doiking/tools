@@ -149,7 +149,8 @@
 
   <p class="hint">
     📌 カメラを会場に向けて「記録」を押すと一定間隔で人数を自動記録します。混雑で人が重なると実際より少なく出ます(目安としてご利用ください)。
-    しきい値を下げると拾いやすく、誤検出も増えます。写真ボタンで会場写真からのカウントもできます。
+    黄枠=カウント対象(スコア%付き)、<b>灰色破線=しきい値未満の「惜しい」候補</b>です。
+    灰色枠に人が入っているならしきい値をその%より下げ、物に黄枠が付くなら上げてください。写真ボタンで会場写真からのカウントもできます。
   </p>
 </main>
 
@@ -182,10 +183,12 @@
 
   /* ===== 設定・記録の永続化 ===== */
   const KEY = "crowd.v1";
-  const DEF = { th: 30, iv: 5, log: [], model: "lite2" };
+  const DEF = { th: 25, iv: 5, log: [], model: "lite2", v: 2 };
   const MODELS = { lite0: "vendor/efficientdet_lite0.tflite", lite2: "vendor/efficientdet_lite2.tflite" };
   let state = { ...DEF };
   try { state = { ...DEF, ...(JSON.parse(localStorage.getItem(KEY)) || {}) }; } catch (e) {}
+  // v1(旧既定35%)からの移行: 旧既定のままなら新既定に合わせる
+  if (!state.v || state.v < 2) { if (state.th === 35) state.th = 25; state.v = 2; }
   const save = () => {
     if (state.log.length > 20000) state.log = state.log.slice(-20000);
     localStorage.setItem(KEY, JSON.stringify(state));
@@ -292,32 +295,67 @@
     if (detector && v.currentTime !== lastVT && v.videoWidth) {
       lastVT = v.currentTime;
       const res = detector.detectForVideo(v, performance.now());
-      const dets = res.detections.filter((d) => (d.categories[0]?.score || 0) >= state.th / 100);
+      const all = res.detections;
+      const dets = all.filter((d) => (d.categories[0]?.score || 0) >= state.th / 100);
       counts.push(dets.length);
       if (counts.length > 7) counts.shift();
-      drawVideo(v, dets);
+      drawVideo(v, dets, nearMiss(all));
       $("countN").textContent = smoothed();
       $("stNow").textContent = smoothed();
     }
     setTimeout(loop, 120);   // ~8fps(カウント用途には十分・発熱を抑える)
   }
 
-  function drawVideo(v, dets) {
+  // しきい値未満だが近い候補(しきい値の6割以上)。灰色破線で「惜しい」を可視化する
+  function nearMiss(all) {
+    return all.filter((d) => {
+      const s = (d.categories[0]?.score || 0) * 100;
+      return s < state.th && s >= state.th * 0.6;
+    });
+  }
+
+  function drawVideo(v, dets, near) {
     const cv = $("view");
     if (cv.width !== v.videoWidth) { cv.width = v.videoWidth; cv.height = v.videoHeight; }
     const cx = cv.getContext("2d");
     cx.drawImage(v, 0, 0);
-    drawBoxes(cx, dets);
+    drawBoxes(cx, dets, near);
   }
 
-  function drawBoxes(cx, dets) {
-    cx.lineWidth = Math.max(2, cx.canvas.width / 400);
+  function drawBoxes(cx, dets, near) {
+    const lw = Math.max(2, cx.canvas.width / 400);
+    const fs = Math.max(13, Math.round(cx.canvas.width / 55));
+    cx.font = "bold " + fs + "px sans-serif";
+    cx.textBaseline = "top";
+    // 惜しい候補(灰色破線+スコア)
+    if (near && near.length) {
+      cx.setLineDash([lw * 3, lw * 3]);
+      cx.lineWidth = lw;
+      cx.strokeStyle = "rgba(200,200,210,.75)";
+      for (const d of near) {
+        const b = d.boundingBox;
+        cx.strokeRect(b.originX, b.originY, b.width, b.height);
+        const label = Math.round(d.categories[0].score * 100) + "%";
+        cx.fillStyle = "rgba(40,40,48,.85)";
+        cx.fillRect(b.originX, b.originY, cx.measureText(label).width + fs * 0.6, fs * 1.35);
+        cx.fillStyle = "#c8c8d2";
+        cx.fillText(label, b.originX + fs * 0.3, b.originY + fs * 0.2);
+      }
+      cx.setLineDash([]);
+    }
+    // 本カウント(黄枠+スコア)
+    cx.lineWidth = lw;
     cx.strokeStyle = "#f7c114";
-    cx.fillStyle = "rgba(247,193,20,.14)";
     for (const d of dets) {
       const b = d.boundingBox;
+      cx.fillStyle = "rgba(247,193,20,.14)";
       cx.fillRect(b.originX, b.originY, b.width, b.height);
       cx.strokeRect(b.originX, b.originY, b.width, b.height);
+      const label = Math.round(d.categories[0].score * 100) + "%";
+      cx.fillStyle = "#f7c114";
+      cx.fillRect(b.originX - lw / 2, b.originY - fs * 1.35, cx.measureText(label).width + fs * 0.6, fs * 1.35);
+      cx.fillStyle = "#17130a";
+      cx.fillText(label, b.originX + fs * 0.3 - lw / 2, b.originY - fs * 1.15);
     }
   }
 
@@ -337,7 +375,7 @@
       cv.width = img.naturalWidth; cv.height = img.naturalHeight;
       const cx = cv.getContext("2d");
       cx.drawImage(img, 0, 0);
-      drawBoxes(cx, dets);
+      drawBoxes(cx, dets, nearMiss(res.detections));
       $("idle").hidden = true;
       $("count").hidden = false;
       $("countN").textContent = dets.length;
