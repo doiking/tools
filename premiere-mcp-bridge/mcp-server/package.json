@@ -1,0 +1,17 @@
+{
+  "name": "premiere-mcp-server",
+  "version": "1.0.0",
+  "description": "8hammer Premiere MCP server — lets Claude Code control Adobe Premiere Pro via the CEP bridge panel",
+  "type": "module",
+  "bin": {
+    "premiere-mcp-server": "./server.js"
+  },
+  "main": "server.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.23.0"
+  }
+}
