@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>8hammer AI編集アシスタント</title>
+<style>
+  :root {
+    --bg: #0e0e11;
+    --panel: #1c1c22;
+    --line: #33333c;
+    --fg: #f2f2ee;
+    --dim: #9a9aa4;
+    --accent: #f7c114;
+    --ok: #3ecf6e;
+    --ng: #ff5a5a;
+    --user: #2a2a33;
+    --tool: #15242b;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", sans-serif;
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  #topbar { display: flex; align-items: center; gap: 8px; padding: 10px 10px 6px; }
+  #topbar img { height: 20px; }
+  #topbar h1 { font-size: 14px; font-weight: 700; margin: 0; flex: 1; }
+  #topbar button {
+    background: var(--panel); color: var(--dim);
+    border: 1px solid var(--line); border-radius: 7px;
+    font-size: 11px; padding: 4px 8px; cursor: pointer; font-family: inherit;
+  }
+  #topbar button:hover { color: var(--fg); }
+
+  /* 設定 */
+  #setup { padding: 0 10px 6px; }
+  .setrow { display: flex; gap: 8px; }
+  select, input[type=password], input[type=text], textarea {
+    background: #16161b; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 7px;
+    font-size: 12.5px; padding: 6px 8px;
+    font-family: inherit;
+  }
+  select:focus, input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  .note { font-size: 11px; color: var(--dim); line-height: 1.6; }
+
+  /* チャット */
+  #chat { flex: 1; overflow-y: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; }
+  .bub { border-radius: 10px; padding: 8px 11px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; max-width: 92%; }
+  .bub.user { background: var(--user); align-self: flex-end; }
+  .bub.ai { background: var(--panel); border: 1px solid var(--line); align-self: flex-start; }
+  .bub.err { background: #2a1616; color: var(--ng); align-self: flex-start; border: 1px solid #4a2020; }
+  .tool {
+    align-self: flex-start; max-width: 92%;
+    background: var(--tool); border: 1px solid #22434f; border-radius: 8px;
+    padding: 6px 9px; font-size: 11.5px; color: #a9d7e6;
+    font-variant-numeric: tabular-nums;
+  }
+  .tool .tn { color: var(--accent); font-weight: 700; }
+  .tool .tr { color: var(--dim); display: block; margin-top: 3px; white-space: pre-wrap; word-break: break-word; }
+  .tool.bad { border-color: #4a2020; background: #221515; color: #e6a9a9; }
+  .thinking { align-self: flex-start; color: var(--dim); font-size: 12px; padding: 4px 2px; }
+  .empty { color: var(--dim); text-align: center; margin-top: 30px; line-height: 1.9; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 10px; }
+  .chip { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 5px 11px; font-size: 11.5px; color: var(--dim); cursor: pointer; }
+  .chip:hover { border-color: var(--accent); color: var(--fg); }
+
+  /* 入力 */
+  #composer { border-top: 1px solid var(--line); padding: 8px 10px; display: flex; gap: 8px; align-items: flex-end; }
+  #inp { flex: 1; resize: none; max-height: 120px; line-height: 1.5; }
+  #send {
+    background: var(--accent); color: #17130a;
+    border: none; border-radius: 9px;
+    font-size: 13px; font-weight: 800;
+    padding: 9px 14px; cursor: pointer; font-family: inherit;
+  }
+  #send:disabled { opacity: .45; cursor: default; }
+</style>
+</head>
+<body>
+  <div id="topbar">
+    <img src="data:image/png;base64,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" alt="8hammer">
+    <h1>AI編集アシスタント</h1>
+    <button id="btnClear" title="会話をリセット">クリア</button>
+    <button id="btnSet" title="設定">⚙</button>
+  </div>
+
+  <div id="setup" hidden>
+    <div class="setrow" style="margin-bottom:6px">
+      <input type="password" id="apiKey" placeholder="Anthropic APIキー(この端末にのみ保存)" style="flex:1;min-width:120px">
+      <select id="model">
+        <option value="claude-sonnet-5" selected>Sonnet 5(推奨)</option>
+        <option value="claude-haiku-4-5-20251001">Haiku 4.5(高速)</option>
+        <option value="claude-opus-4-8">Opus 4.8</option>
+      </select>
+    </div>
+    <div class="note">
+      指示文とプロジェクトの構成情報(素材名・シーケンス内容など)がAnthropicに送信されます。映像・音声そのものは送信されません。
+      共有PCではキーの取り扱いに注意してください。
+    </div>
+  </div>
+
+  <div id="chat">
+    <div class="empty" id="empty">
+      Premiereのプロジェクトを自然言語で編集できます。<br>
+      まず設定(⚙)でAPIキーを入れてください。
+      <div class="chips" id="chips"></div>
+    </div>
+  </div>
+
+  <div id="composer">
+    <textarea id="inp" rows="1" placeholder="指示を入力(例: 選択中の素材を新しいシーケンスに順番に並べて)"></textarea>
+    <button id="send">送信</button>
+  </div>
+
+<script>
+"use strict";
+const LS_KEY = "assistant.panel.v1";
+const $ = (id) => document.getElementById(id);
+const API_URL = "https://api.anthropic.com/v1/messages";
+
+/* ---------- Premiere bridge ---------- */
+const bridge = window.__adobe_cep__ || null;
+function jsxCall(code) {
+  return new Promise((resolve, reject) => {
+    if (!bridge) { reject(new Error("Premiere外で開かれています(エクステンションとして起動してください)")); return; }
+    bridge.evalScript(code, (r) => {
+      if (typeof r === "string" && r.indexOf("EvalScript error") === 0) {
+        reject(new Error("Premiereスクリプトの実行に失敗しました: " + r));
+      } else {
+        resolve(r);
+      }
+    });
+  });
+}
+
+/* ---------- 設定 ---------- */
+let pref = { apiKey: "", model: "claude-sonnet-5" };
+try { Object.assign(pref, JSON.parse(localStorage.getItem(LS_KEY) || "{}")); } catch (e) {}
+function savePref() { try { localStorage.setItem(LS_KEY, JSON.stringify(pref)); } catch (e) {} }
+$("apiKey").value = pref.apiKey;
+$("model").value = pref.model;
+$("apiKey").addEventListener("change", () => { pref.apiKey = $("apiKey").value.trim(); savePref(); });
+$("model").addEventListener("change", () => { pref.model = $("model").value; savePref(); });
+$("btnSet").addEventListener("click", () => { $("setup").hidden = !$("setup").hidden; });
+if (!pref.apiKey) $("setup").hidden = false;
+
+/* ---------- ツール定義(Claude tool use → host.jsx) ---------- */
+const TOOLS = [
+  {
+    name: "get_project_overview",
+    description: "現在開いているプロジェクトの概観を取得する。プロジェクト名、シーケンス一覧、プロジェクトパネル内の素材(nodeId・名前・bin・メディア有無)を返す。素材を配置する前に必ず呼んでnodeIdを確認すること。",
+    input_schema: { type: "object", properties: {}, required: [] }
+  },
+  {
+    name: "get_active_sequence",
+    description: "アクティブなシーケンスの詳細(名前・fps・尺・再生ヘッド位置・各トラックのクリップと時間、秒単位)を取得する。タイムラインの現状を把握するために使う。",
+    input_schema: { type: "object", properties: {}, required: [] }
+  },
+  {
+    name: "get_selection",
+    description: "プロジェクトパネルで現在選択中の素材(nodeId・名前)を取得する。「選択中の素材」を対象にする指示のときに使う。",
+    input_schema: { type: "object", properties: {}, required: [] }
+  },
+  {
+    name: "create_sequence",
+    description: "新しい空のシーケンスを作成し、それをアクティブにする。",
+    input_schema: {
+      type: "object",
+      properties: { name: { type: "string", description: "シーケンス名" } },
+      required: ["name"]
+    }
+  },
+  {
+    name: "place_clip",
+    description: "プロジェクト素材をアクティブシーケンスのトラックに配置する。nodeIdはget_project_overview/get_selectionで取得する。inSeconds/outSecondsで素材のイン点・アウト点(秒)を指定でき、省略時は素材全体。",
+    input_schema: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "配置する素材のnodeId" },
+        track: { type: "string", description: 'トラック指定。"V1"(映像1)や"A1"(音声1)など。既定はV1', default: "V1" },
+        atSeconds: { type: "number", description: "配置先の開始位置(秒)。既定0" },
+        inSeconds: { type: "number", description: "素材のイン点(秒、任意)" },
+        outSeconds: { type: "number", description: "素材のアウト点(秒、任意)" },
+        mode: { type: "string", enum: ["insert", "overwrite"], description: "insert=挿入(後続をずらす) / overwrite=上書き。既定insert" }
+      },
+      required: ["nodeId"]
+    }
+  },
+  {
+    name: "add_marker",
+    description: "アクティブシーケンスの指定位置(秒)にマーカーを追加する。名前・コメント・長さを任意で付けられる。",
+    input_schema: {
+      type: "object",
+      properties: {
+        atSeconds: { type: "number", description: "マーカー位置(秒)" },
+        name: { type: "string", description: "マーカー名(任意)" },
+        comment: { type: "string", description: "コメント(任意)" },
+        durationSeconds: { type: "number", description: "デュレーション秒(任意、範囲マーカー)" }
+      },
+      required: ["atSeconds"]
+    }
+  },
+  {
+    name: "set_playhead",
+    description: "アクティブシーケンスの再生ヘッドを指定秒に移動する。",
+    input_schema: {
+      type: "object",
+      properties: { seconds: { type: "number", description: "移動先(秒)" } },
+      required: ["seconds"]
+    }
+  },
+  {
+    name: "import_files",
+    description: "絶対パスで指定したメディアファイルをプロジェクトにインポートする。パスが分かっている場合のみ使う。",
+    input_schema: {
+      type: "object",
+      properties: { paths: { type: "array", items: { type: "string" }, description: "絶対パスの配列" } },
+      required: ["paths"]
+    }
+  }
+];
+
+const SYSTEM = [
+  "あなたは8hammerの映像編集アシスタントです。Adobe Premiere Proのパネル内で動作し、提供されたツールで実際のプロジェクトを読み取り・編集します。",
+  "日本語で、簡潔に応答してください。",
+  "行動の前に状態を確認すること: 素材を扱うならget_project_overviewまたはget_selectionでnodeIdを取得し、タイムラインを扱うならget_active_sequenceで現状を把握してから操作する。",
+  "時間はすべて秒単位。ツールの結果がerrを返したら、原因を推測して別の方法を試すか、ユーザーに何が必要か伝える。",
+  "複数クリップを順番に並べる場合は、各クリップの尺に合わせてatSecondsを積み上げる(前のクリップのout-in、または素材全体尺を足す)。尺が不明ならget_active_sequenceで配置後の状態を確認して次の位置を決める。",
+  "破壊的・大規模になりうる操作(多数のクリップ配置・全消し相当など)を行う前は、何をするか一言添えてから実行する。",
+  "作業が終わったら、何をしたかを1〜2文でまとめる。"
+].join("\n");
+
+/* ---------- 会話状態 ---------- */
+let messages = [];   // Anthropic messages配列
+let busy = false;
+
+function scrollBottom() { const c = $("chat"); c.scrollTop = c.scrollHeight; }
+function hideEmpty() { const e = $("empty"); if (e) e.remove(); }
+
+function addBubble(cls, text) {
+  hideEmpty();
+  const el = document.createElement("div");
+  el.className = "bub " + cls;
+  el.textContent = text;
+  $("chat").appendChild(el);
+  scrollBottom();
+  return el;
+}
+function addTool(name, input) {
+  hideEmpty();
+  const el = document.createElement("div");
+  el.className = "tool";
+  const tn = document.createElement("span");
+  tn.className = "tn";
+  tn.textContent = "🔧 " + name;
+  el.appendChild(tn);
+  const args = input && Object.keys(input).length ? "  " + JSON.stringify(input) : "";
+  if (args) el.appendChild(document.createTextNode(args));
+  $("chat").appendChild(el);
+  scrollBottom();
+  return el;
+}
+function markToolResult(el, resultStr) {
+  let bad = false;
+  try { bad = !!JSON.parse(resultStr).err; } catch (e) {}
+  if (bad) el.className = "tool bad";
+  const tr = document.createElement("span");
+  tr.className = "tr";
+  tr.textContent = "→ " + (resultStr.length > 400 ? resultStr.slice(0, 400) + "…" : resultStr);
+  el.appendChild(tr);
+  scrollBottom();
+}
+
+/* ---------- ツール実行(Claude → host.jsx) ---------- */
+function jsStr(v) { return JSON.stringify(v); } // JS文字列リテラル化
+async function runTool(name, input) {
+  input = input || {};
+  switch (name) {
+    case "get_project_overview": return await jsxCall("paGetOverview()");
+    case "get_active_sequence": return await jsxCall("paGetSequence()");
+    case "get_selection": return await jsxCall("paGetSelection()");
+    case "create_sequence": return await jsxCall("paCreateSequence(" + jsStr(input.name || "sequence") + ")");
+    case "place_clip": return await jsxCall("paPlaceClip(" + jsStr(JSON.stringify(input)) + ")");
+    case "add_marker": return await jsxCall("paAddMarker(" + jsStr(JSON.stringify(input)) + ")");
+    case "set_playhead": return await jsxCall("paSetPlayhead(" + Number(input.seconds || 0) + ")");
+    case "import_files": return await jsxCall("paImport(" + jsStr(JSON.stringify(input)) + ")");
+    default: return JSON.stringify({ err: "未知のツール: " + name });
+  }
+}
+
+/* ---------- Anthropic API ---------- */
+async function callClaude() {
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": pref.apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify({
+      model: pref.model,
+      max_tokens: 4096,
+      system: SYSTEM,
+      tools: TOOLS,
+      messages: messages,
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error("API " + res.status + ": " + body.slice(0, 300));
+  }
+  return await res.json();
+}
+
+/* ---------- エージェントループ ---------- */
+async function converse() {
+  let guard = 0;
+  const thinking = document.createElement("div");
+  thinking.className = "thinking";
+  thinking.textContent = "考え中…";
+  $("chat").appendChild(thinking);
+  scrollBottom();
+
+  try {
+    while (guard++ < 16) {
+      const data = await callClaude();
+      messages.push({ role: "assistant", content: data.content });
+
+      // テキスト/ツール呼び出しを描画
+      const toolUses = [];
+      for (const block of data.content) {
+        if (block.type === "text" && block.text.trim()) addBubble("ai", block.text.trim());
+        else if (block.type === "tool_use") toolUses.push(block);
+      }
+
+      if (data.stop_reason === "tool_use" && toolUses.length) {
+        const results = [];
+        for (const tu of toolUses) {
+          const el = addTool(tu.name, tu.input);
+          let result;
+          try { result = await runTool(tu.name, tu.input); }
+          catch (e) { result = JSON.stringify({ err: String(e.message || e) }); }
+          if (typeof result !== "string") result = JSON.stringify(result);
+          markToolResult(el, result);
+          results.push({ type: "tool_result", tool_use_id: tu.id, content: result });
+        }
+        messages.push({ role: "user", content: results });
+        continue; // ループ続行(結果をClaudeへ)
+      }
+      break; // tool_useでなければ終了
+    }
+    if (guard >= 16) addBubble("err", "ツール呼び出しが上限に達しました。指示を分割して試してください。");
+  } finally {
+    thinking.remove();
+  }
+}
+
+/* ---------- 送信 ---------- */
+async function send() {
+  if (busy) return;
+  const text = $("inp").value.trim();
+  if (!text) return;
+  if (!pref.apiKey) { $("setup").hidden = false; addBubble("err", "先に設定(⚙)でAnthropic APIキーを入力してください。"); return; }
+  if (!bridge) { addBubble("err", "Premiere外で開かれています。Premiereの ウィンドウ → エクステンション から起動してください。"); return; }
+
+  $("inp").value = "";
+  autosize();
+  addBubble("user", text);
+  messages.push({ role: "user", content: text });
+
+  busy = true;
+  $("send").disabled = true;
+  try {
+    await converse();
+  } catch (e) {
+    addBubble("err", "エラー: " + (e.message || e));
+  } finally {
+    busy = false;
+    $("send").disabled = false;
+    $("inp").focus();
+  }
+}
+
+$("send").addEventListener("click", send);
+$("inp").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); }
+});
+function autosize() {
+  const t = $("inp");
+  t.style.height = "auto";
+  t.style.height = Math.min(120, t.scrollHeight) + "px";
+}
+$("inp").addEventListener("input", autosize);
+
+$("btnClear").addEventListener("click", () => {
+  messages = [];
+  $("chat").innerHTML = '<div class="empty" id="empty">会話をリセットしました。<div class="chips" id="chips"></div></div>';
+  renderChips();
+});
+
+/* ---------- サンプル指示チップ ---------- */
+const SAMPLES = [
+  "いま開いているプロジェクトの中身を教えて",
+  "選択中の素材を新しいシーケンスに順番に並べて",
+  "アクティブシーケンスのクリップの切れ目にマーカーを打って",
+  "10秒地点に「確認」というマーカーを追加して",
+];
+function renderChips() {
+  const box = $("chips");
+  if (!box) return;
+  box.textContent = "";
+  SAMPLES.forEach((s) => {
+    const c = document.createElement("div");
+    c.className = "chip";
+    c.textContent = s;
+    c.addEventListener("click", () => { $("inp").value = s; autosize(); $("inp").focus(); });
+    box.appendChild(c);
+  });
+}
+renderChips();
+
+if (!bridge) addBubble("err", "Premiere外で開かれています。Premiereの ウィンドウ → エクステンション → 8hammer AI編集アシスタント から起動してください。");
+</script>
+</body>
+</html>
