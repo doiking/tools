@@ -2,95 +2,121 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>8hammer MCPブリッジ</title>
+<title>8hammer MCPブリッジ + Claude</title>
 <style>
   :root{
     --bg:#0e0e11; --panel:#1c1c22; --line:#33333c; --fg:#f2f2ee;
     --dim:#9a9aa4; --accent:#f7c114; --ok:#3ecf6e; --ng:#ff5a5a;
+    --user:#2a2a33; --tool:#15242b;
   }
   *{box-sizing:border-box;}
   html,body{height:100%;}
   body{
     margin:0; background:var(--bg); color:var(--fg);
     font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Yu Gothic UI",sans-serif;
-    font-size:13px; padding:10px; display:flex; flex-direction:column; gap:10px; height:100vh; overflow:hidden;
+    font-size:13px; display:flex; flex-direction:column; height:100vh; overflow:hidden;
   }
-  #top{display:flex; align-items:center; gap:8px;}
+  #top{display:flex; align-items:center; gap:8px; padding:10px 10px 4px;}
   #top img{height:20px;}
   #top h1{font-size:14px; font-weight:700; margin:0; flex:1;}
-  .panel{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px;}
-  .ptitle{font-size:11px; letter-spacing:.08em; color:var(--dim); margin-bottom:7px;}
-  .row{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
-  label{font-size:11.5px; color:var(--dim);}
+  #top .st{font-size:11px; color:var(--dim);}
+  #top .st .dot{display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--ng); margin-right:4px;}
+  #top .st.on .dot{background:var(--ok);}
+  #top button{background:var(--panel); color:var(--dim); border:1px solid var(--line); border-radius:7px; font-size:11px; padding:4px 8px; cursor:pointer; font-family:inherit;}
+
+  .settings{padding:0 10px 6px; display:none; flex-direction:column; gap:6px;}
+  .settings.show{display:flex;}
+  .settings .grid{display:grid; grid-template-columns:auto 1fr; gap:6px 8px; align-items:center;}
+  .settings label{font-size:11px; color:var(--dim);}
   input[type=text],input[type=number]{
     background:#16161b; color:var(--fg); border:1px solid var(--line);
-    border-radius:7px; font-size:12.5px; padding:6px 8px; font-family:inherit;
+    border-radius:6px; font-size:12px; padding:5px 7px; font-family:inherit; width:100%;
   }
-  input:focus{outline:none; border-color:var(--accent);}
-  button{
-    background:var(--accent); color:#17130a; border:none; border-radius:8px;
-    font-size:12.5px; font-weight:800; padding:7px 12px; cursor:pointer; font-family:inherit;
-  }
-  button.sub{background:var(--panel); color:var(--fg); border:1px solid var(--line); font-weight:600;}
-  #state{font-size:12px; line-height:1.6;}
-  #state .dot{display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--ng); margin-right:6px; vertical-align:middle;}
-  #state.on .dot{background:var(--ok);}
-  #ep{font-family:ui-monospace,Menlo,Consolas,monospace; color:var(--accent); font-size:12px;}
-  #log{flex:1; overflow-y:auto; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11px; line-height:1.6; background:#101014; border:1px solid #26262c; border-radius:8px; padding:8px;}
-  .le{white-space:pre-wrap; word-break:break-word; border-bottom:1px solid #1c1c22; padding:2px 0;}
-  .le .t{color:var(--dim);}
-  .le.err{color:var(--ng);}
-  .le.ok .fn{color:var(--ok);}
-  .fn{color:var(--accent); font-weight:700;}
-  .note{font-size:11px; color:var(--dim); line-height:1.6;}
+  input:focus,textarea:focus{outline:none; border-color:var(--accent);}
+  .settings .chk{grid-column:1/3; font-size:11px; color:var(--dim); display:flex; align-items:center; gap:6px;}
+  .note{font-size:10.5px; color:var(--dim); line-height:1.6; grid-column:1/3;}
+
+  #chat{flex:1; overflow-y:auto; padding:8px 10px; display:flex; flex-direction:column; gap:8px;}
+  .bub{border-radius:10px; padding:8px 11px; line-height:1.7; white-space:pre-wrap; word-break:break-word; max-width:92%;}
+  .bub.user{background:var(--user); align-self:flex-end;}
+  .bub.ai{background:var(--panel); border:1px solid var(--line); align-self:flex-start;}
+  .bub.err{background:#2a1616; color:var(--ng); align-self:flex-start; border:1px solid #4a2020;}
+  .tool{align-self:flex-start; max-width:92%; background:var(--tool); border:1px solid #22434f; border-radius:8px; padding:5px 9px; font-size:11px; color:#a9d7e6; font-family:ui-monospace,Menlo,Consolas,monospace;}
+  .tool .tn{color:var(--accent); font-weight:700;}
+  .thinking{align-self:flex-start; color:var(--dim); font-size:12px; padding:2px;}
+  .empty{color:var(--dim); text-align:center; margin-top:24px; line-height:1.9;}
+  .chips{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-top:10px;}
+  .chip{background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:5px 11px; font-size:11px; color:var(--dim); cursor:pointer;}
+  .chip:hover{border-color:var(--accent); color:var(--fg);}
+
+  #composer{border-top:1px solid var(--line); padding:8px 10px; display:flex; gap:8px; align-items:flex-end;}
+  #inp{flex:1; resize:none; max-height:110px; line-height:1.5; background:#16161b; color:var(--fg); border:1px solid var(--line); border-radius:8px; font-size:12.5px; padding:8px; font-family:inherit;}
+  #send{background:var(--accent); color:#17130a; border:none; border-radius:9px; font-size:13px; font-weight:800; padding:9px 14px; cursor:pointer; font-family:inherit;}
+  #send:disabled{opacity:.45; cursor:default;}
 </style>
 </head>
 <body>
   <div id="top">
     <img src="data:image/png;base64,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" alt="8hammer">
-    <h1>MCPブリッジ</h1>
+    <h1>Premiere × Claude</h1>
+    <span id="bstate" class="st"><span class="dot"></span><span id="bstateText">窓口停止</span></span>
+    <button id="btnClear" title="会話リセット">クリア</button>
+    <button id="btnSet" title="設定">⚙</button>
   </div>
 
-  <div class="panel">
-    <div class="ptitle">ローカル窓口(Claude Code から接続)</div>
-    <div class="row" style="margin-bottom:8px">
-      <label>ポート</label>
-      <input type="number" id="port" value="8722" style="width:82px">
-      <label>トークン</label>
-      <input type="text" id="token" value="8hammer-local" style="flex:1;min-width:110px">
+  <div class="settings" id="settings">
+    <div class="grid">
+      <label>claude パス</label><input type="text" id="claudePath" placeholder="claude(PATH上) または絶対パス">
+      <label>node パス</label><input type="text" id="nodePath" placeholder="node(PATH上) または絶対パス">
+      <label>mcp-server</label><input type="text" id="mcpPath" placeholder="…/premiere-mcp-bridge/mcp-server/server.js(絶対パス)">
+      <label>モデル</label><input type="text" id="model" placeholder="空欄=既定 / sonnet / opus / haiku">
+      <label>ポート</label><input type="number" id="port" value="8722">
+      <label>トークン</label><input type="text" id="token" value="8hammer-local">
+      <div class="chk"><input type="checkbox" id="skipPerms"> 権限プロンプトを完全スキップ(--dangerously-skip-permissions)</div>
+      <div class="note">
+        裏でターミナルの Claude Code を起動します(サブスクのまま/APIキー不要)。
+        事前に <b>1) Premiereでこのパネルを開く 2) mcp-server で npm install 3) 一度ターミナルで <code>claude</code> にログイン済み</b> であること。
+        ANTHROPIC_API_KEY は自動で外して起動します。
+      </div>
     </div>
-    <div class="row" style="margin-bottom:8px">
-      <button id="btnStart">起動</button>
-      <button id="btnStop" class="sub">停止</button>
-    </div>
-    <div id="state"><span class="dot"></span><span id="stateText">停止中</span></div>
-    <div id="ep" style="margin-top:4px"></div>
   </div>
 
-  <div class="ptitle" style="margin:0 2px -4px">通信ログ</div>
-  <div id="log"></div>
+  <div id="chat">
+    <div class="empty" id="empty">
+      Premiere を自然言語で編集できます(裏で Claude Code=サブスクが動きます)。<br>
+      まず ⚙ で <b>mcp-server のパス</b> を設定してください。
+      <div class="chips" id="chips"></div>
+    </div>
+  </div>
 
-  <div class="note">
-    このパネルは Premiere を外部から操作するための小さな窓口(localhostのみ)です。
-    Claude Code はここを叩いて Premiere を動かします。データは端末内で完結し、外部送信はありません。
+  <div id="composer">
+    <textarea id="inp" rows="1" placeholder="指示を入力(例: 選択中の素材を新しいシーケンスに並べて) / Cmd(Ctrl)+Enterで送信"></textarea>
+    <button id="send">送信</button>
   </div>
 
 <script>
 "use strict";
-const LS="mcpbridge.v1";
+const LS="premiere-cc.v1";
 const $=(id)=>document.getElementById(id);
 const bridge=window.__adobe_cep__||null;
 
-let pref={port:8722,token:"8hammer-local"};
+function nodeRequire(){ try{ return (window.cep_node&&window.cep_node.require)||window.require||require; }catch(e){ return null; } }
+
+let pref={claudePath:"claude",nodePath:"node",mcpPath:"",model:"",port:8722,token:"8hammer-local",skipPerms:false};
 try{Object.assign(pref,JSON.parse(localStorage.getItem(LS)||"{}"));}catch(e){}
-$("port").value=pref.port; $("token").value=pref.token;
 function savePref(){try{localStorage.setItem(LS,JSON.stringify(pref));}catch(e){}}
+["claudePath","nodePath","mcpPath","model","port","token"].forEach(k=>{ if($(k)) $(k).value=pref[k]; });
+$("skipPerms").checked=!!pref.skipPerms;
+function bindPref(k,cast){ const el=$(k); el.addEventListener("change",()=>{ pref[k]=cast?cast(el.value):el.value; savePref(); }); }
+bindPref("claudePath"); bindPref("nodePath"); bindPref("mcpPath"); bindPref("model");
+bindPref("port",v=>parseInt(v,10)||8722); bindPref("token");
+$("skipPerms").addEventListener("change",()=>{pref.skipPerms=$("skipPerms").checked;savePref();});
+$("btnSet").addEventListener("click",()=>$("settings").classList.toggle("show"));
+if(!pref.mcpPath) $("settings").classList.add("show");
 
-function nodeRequire(){
-  try{ return (window.cep_node&&window.cep_node.require)||window.require||require; }catch(e){ return null; }
-}
+const ALLOWED=["get_project_overview","get_active_sequence","get_selection","create_sequence","place_clip","add_marker","set_playhead","import_files"].map(t=>"mcp__premiere__"+t).join(",");
 
-/* ---- Premiere呼び出し(evalScript) ---- */
+/* ---------- Premiere bridge (evalScript + localhost窓口) ---------- */
 function jsx(code){
   return new Promise((resolve,reject)=>{
     if(!bridge){reject(new Error("Premiere外です"));return;}
@@ -101,8 +127,6 @@ function jsx(code){
   });
 }
 function jstr(v){return JSON.stringify(v);}
-
-/* ツール名 → host.jsx 呼び出し文字列 */
 function buildCall(fn,args){
   args=args||{};
   switch(fn){
@@ -117,96 +141,131 @@ function buildCall(fn,args){
     default: return null;
   }
 }
-
-/* ---- ログ ---- */
-function logLine(cls,fn,detail){
-  const box=$("log");
-  const el=document.createElement("div");
-  el.className="le "+(cls||"");
-  const t=new Date();
-  const ts=("0"+t.getHours()).slice(-2)+":"+("0"+t.getMinutes()).slice(-2)+":"+("0"+t.getSeconds()).slice(-2);
-  const s=document.createElement("span"); s.className="t"; s.textContent="["+ts+"] ";
-  const f=document.createElement("span"); f.className="fn"; f.textContent=fn+" ";
-  el.append(s,f,document.createTextNode(detail||""));
-  box.appendChild(el);
-  box.scrollTop=box.scrollHeight;
-  while(box.childNodes.length>200) box.removeChild(box.firstChild);
-}
-
-/* ---- HTTPサーバ ---- */
 let server=null;
-function setState(on,text){
-  $("state").className=on?"on":"";
-  $("stateText").textContent=text;
-}
-function endpoint(){ return "http://127.0.0.1:"+pref.port+"/call"; }
-
-function start(){
-  if(server){logLine("","(info)","すでに起動しています");return;}
-  const req=nodeRequire();
-  if(!req){logLine("err","(error)","Node統合が無効です(manifestの--enable-nodejsを確認)");return;}
-  let http;
-  try{ http=req("http"); }catch(e){ logLine("err","(error)","httpモジュール取得失敗: "+e.message); return; }
-
+function setBState(on,text){ $("bstate").className="st"+(on?" on":""); $("bstateText").textContent=text; }
+function startBridge(){
+  if(server||!bridge) return;
+  const req=nodeRequire(); if(!req){ setBState(false,"Node無効"); return; }
+  let http; try{ http=req("http"); }catch(e){ setBState(false,"http取得失敗"); return; }
   server=http.createServer((rq,rs)=>{
-    if(rq.method==="OPTIONS"){ rs.writeHead(204); rs.end(); return; }
-    if(rq.method!=="POST"||rq.url!=="/call"){ rs.writeHead(404,{"content-type":"application/json"}); rs.end('{"err":"POST /call のみ対応"}'); return; }
-    if(pref.token && rq.headers["x-8h-token"]!==pref.token){
-      rs.writeHead(401,{"content-type":"application/json"}); rs.end('{"err":"トークン不一致"}');
-      logLine("err","(auth)","トークン不一致で拒否");
-      return;
-    }
-    let body="";
-    rq.on("data",d=>{ body+=d; if(body.length>1e6){ rq.destroy(); } });
+    if(rq.method!=="POST"||rq.url!=="/call"){ rs.writeHead(404); rs.end('{"err":"POST /call のみ"}'); return; }
+    if(pref.token && rq.headers["x-8h-token"]!==pref.token){ rs.writeHead(401); rs.end('{"err":"トークン不一致"}'); return; }
+    let body=""; rq.on("data",d=>{body+=d; if(body.length>1e6) rq.destroy();});
     rq.on("end",async ()=>{
-      let fn="?",args={};
       try{
-        const p=JSON.parse(body||"{}"); fn=p.fn; args=p.args||{};
-        const code=buildCall(fn,args);
-        if(!code) throw new Error("未知のツール: "+fn);
+        const p=JSON.parse(body||"{}"); const code=buildCall(p.fn,p.args||{});
+        if(!code) throw new Error("未知のツール: "+p.fn);
         const out=await jsx(code);
         rs.writeHead(200,{"content-type":"application/json"}); rs.end(out);
-        let bad=false; try{bad=!!JSON.parse(out).err;}catch(e){}
-        logLine(bad?"err":"ok",fn,(bad?"→ ":"→ ok ")+String(out).slice(0,120));
-      }catch(e){
-        const msg=String(e.message||e);
-        rs.writeHead(500,{"content-type":"application/json"}); rs.end(JSON.stringify({err:msg}));
-        logLine("err",fn,"→ "+msg);
-      }
+      }catch(e){ rs.writeHead(500,{"content-type":"application/json"}); rs.end(JSON.stringify({err:String(e.message||e)})); }
     });
   });
-  server.on("error",(e)=>{
-    logLine("err","(server)",e.message);
-    setState(false,"エラー: "+e.message);
-    server=null;
-  });
-  server.listen(pref.port,"127.0.0.1",()=>{
-    setState(true,"起動中");
-    $("ep").textContent=endpoint();
-    logLine("ok","(server)","起動 "+endpoint());
-  });
-}
-function stop(){
-  if(!server){logLine("","(info)","起動していません");return;}
-  try{ server.close(); }catch(e){}
-  server=null;
-  setState(false,"停止中");
-  $("ep").textContent="";
-  logLine("","(server)","停止");
+  server.on("error",(e)=>{ setBState(false,"窓口エラー:"+e.message); server=null; });
+  server.listen(pref.port,"127.0.0.1",()=>setBState(true,"窓口 :"+pref.port));
 }
 
-$("btnStart").addEventListener("click",()=>{
-  pref.port=parseInt($("port").value,10)||8722;
-  pref.token=$("token").value;
-  savePref();
-  start();
-});
-$("btnStop").addEventListener("click",stop);
-$("port").addEventListener("change",()=>{pref.port=parseInt($("port").value,10)||8722;savePref();});
-$("token").addEventListener("change",()=>{pref.token=$("token").value;savePref();});
+/* ---------- チャットUI ---------- */
+function scrollBottom(){ const c=$("chat"); c.scrollTop=c.scrollHeight; }
+function hideEmpty(){ const e=$("empty"); if(e) e.remove(); }
+function addBubble(cls,text){ hideEmpty(); const el=document.createElement("div"); el.className="bub "+cls; el.textContent=text; $("chat").appendChild(el); scrollBottom(); return el; }
+function addTool(name){ hideEmpty(); const el=document.createElement("div"); el.className="tool"; const t=document.createElement("span"); t.className="tn"; t.textContent="🔧 "+name; el.appendChild(t); $("chat").appendChild(el); scrollBottom(); }
 
-if(!bridge){ setState(false,"Premiere外"); logLine("err","(info)","Premiere外で開かれています。エクステンションとして起動してください。"); }
-else { start(); }  /* パネルを開いたら自動起動 */
+/* stream-json パーサ(検証済み・寛容) */
+function makeParser(on){
+  let buf="", sessionId=null, finalText=null;
+  function h(o){
+    if(o&&typeof o==="object"&&o.session_id) sessionId=o.session_id;
+    if(!o||typeof o!=="object") return;
+    if(o.type==="assistant"&&o.message&&Array.isArray(o.message.content)){
+      for(const b of o.message.content){
+        if(b.type==="text"&&b.text) on({kind:"text",text:b.text});
+        else if(b.type==="tool_use") on({kind:"tool",name:b.name});
+      }
+    }else if(o.type==="stream_event"&&o.event){
+      const e=o.event;
+      if(e.type==="content_block_delta"&&e.delta&&e.delta.type==="text_delta") on({kind:"text",text:e.delta.text});
+      else if(e.type==="content_block_start"&&e.content_block&&e.content_block.type==="tool_use") on({kind:"tool",name:e.content_block.name});
+    }else if(o.type==="result"){ if(typeof o.result==="string") finalText=o.result; }
+  }
+  return {
+    feed(chunk){ buf+=chunk; let i; while((i=buf.indexOf("\n"))>=0){ const line=buf.slice(0,i).trim(); buf=buf.slice(i+1); if(line){ try{h(JSON.parse(line));}catch(_){} } } },
+    done(){ const line=buf.trim(); if(line){ try{h(JSON.parse(line));}catch(_){} } return {sessionId,finalText}; }
+  };
+}
+
+let sessionId=null, busy=false;
+
+function runClaude(userText){
+  return new Promise((resolve)=>{
+    const req=nodeRequire();
+    if(!req){ addBubble("err","Node統合が無効です"); return resolve(); }
+    if(!pref.mcpPath){ $("settings").classList.add("show"); addBubble("err","⚙ で mcp-server のパスを設定してください"); return resolve(); }
+    if(!bridge){ addBubble("err","Premiere外です。エクステンションとして起動してください"); return resolve(); }
+    const cp=req("child_process"), os=req("os"), fs=req("fs"), path=req("path");
+
+    // mcp-config を一時ファイルに生成
+    const cfg={mcpServers:{premiere:{command:pref.nodePath||"node",args:[pref.mcpPath],env:{PREMIERE_BRIDGE_PORT:String(pref.port),PREMIERE_BRIDGE_TOKEN:pref.token}}}};
+    let cfgPath;
+    try{ cfgPath=path.join(os.tmpdir(),"8h-premiere-mcp.json"); fs.writeFileSync(cfgPath,JSON.stringify(cfg)); }
+    catch(e){ addBubble("err","設定ファイル書き込み失敗: "+e.message); return resolve(); }
+
+    const args=["-p",userText,"--output-format","stream-json","--verbose","--mcp-config",cfgPath,"--strict-mcp-config","--allowedTools",ALLOWED];
+    if(sessionId) args.push("--resume",sessionId);
+    if(pref.model) args.push("--model",pref.model);
+    if(pref.skipPerms) args.push("--dangerously-skip-permissions");
+
+    const env={}; for(const k in process.env) env[k]=process.env[k];
+    delete env.ANTHROPIC_API_KEY; delete env.ANTHROPIC_AUTH_TOKEN;
+
+    let proc;
+    try{ proc=cp.spawn(pref.claudePath||"claude",args,{env,cwd:os.homedir()}); }
+    catch(e){ addBubble("err","claude起動失敗: "+e.message); return resolve(); }
+
+    const think=document.createElement("div"); think.className="thinking"; think.textContent="Claudeが作業中…"; $("chat").appendChild(think); scrollBottom();
+    let curText=null; let stderr="";
+    const parser=makeParser((ev)=>{
+      if(ev.kind==="tool"){ addTool(ev.name); curText=null; }
+      else if(ev.kind==="text"){
+        if(!curText) curText=addBubble("ai",ev.text);
+        else { curText.textContent+=ev.text; scrollBottom(); }
+      }
+    });
+    proc.stdout.on("data",d=>parser.feed(d.toString()));
+    proc.stderr.on("data",d=>{ stderr+=d.toString(); });
+    proc.on("error",(e)=>{ think.remove(); addBubble("err","claude起動失敗: "+e.message+"(claudeパスを確認)"); resolve(); });
+    proc.on("close",(code)=>{
+      think.remove();
+      const {sessionId:sid,finalText}=parser.done();
+      if(sid) sessionId=sid;
+      if(finalText && !curText) addBubble("ai",finalText);
+      if(code!==0 && !curText && !finalText){
+        addBubble("err","claude 終了コード "+code+(stderr?("\n"+stderr.slice(0,400)):""));
+      }
+      resolve();
+    });
+  });
+}
+
+async function send(){
+  if(busy) return;
+  const text=$("inp").value.trim(); if(!text) return;
+  $("inp").value=""; autosize();
+  addBubble("user",text);
+  busy=true; $("send").disabled=true;
+  try{ await runClaude(text); } finally{ busy=false; $("send").disabled=false; $("inp").focus(); }
+}
+$("send").addEventListener("click",send);
+$("inp").addEventListener("keydown",e=>{ if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)){ e.preventDefault(); send(); } });
+function autosize(){ const t=$("inp"); t.style.height="auto"; t.style.height=Math.min(110,t.scrollHeight)+"px"; }
+$("inp").addEventListener("input",autosize);
+$("btnClear").addEventListener("click",()=>{ sessionId=null; $("chat").innerHTML='<div class="empty" id="empty">会話をリセットしました(文脈も新規)。<div class="chips" id="chips"></div></div>'; renderChips(); });
+
+const SAMPLES=["いま開いているプロジェクトの中身を教えて","選択中の素材を新しいシーケンスに順番に並べて","クリップの切れ目にマーカーを打って","10秒地点に「確認」マーカーを追加して"];
+function renderChips(){ const box=$("chips"); if(!box) return; box.textContent=""; SAMPLES.forEach(s=>{ const c=document.createElement("div"); c.className="chip"; c.textContent=s; c.addEventListener("click",()=>{$("inp").value=s;autosize();$("inp").focus();}); box.appendChild(c); }); }
+renderChips();
+
+if(!bridge){ setBState(false,"Premiere外"); addBubble("err","Premiere外で開かれています。ウィンドウ→エクステンション→8hammer MCPブリッジ から起動してください。"); }
+else startBridge();
 </script>
 </body>
 </html>
